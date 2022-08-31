@@ -249,11 +249,13 @@ void TimeSolverExplicitRK4::Solve()
       for (unsigned irk = 0; irk < stages_; ++irk)
       {
         //Update temporary solution used to evaluate the residual for this RK stage
-        for (int i=0; i < nowned_cells, i++)
+        for (int i=0; i < nowned_cells; i++)
           update(alpha_[irk], res_vec, sol_n_vec, sol_temp_vec, i);
 
         //Zero fluxes
-        zero_flux(cells);
+        zero_cell_flux zero_flux(cells);
+        // Kokkos::parallel_for(nowned_cells, zero_flux);
+        // Kokkos::fence();
 
         //Compute Gradients and Limiters
         if(options_.second_order_space || options_.viscous){
@@ -266,6 +268,7 @@ void TimeSolverExplicitRK4::Solve()
       }
 
       //Compute internal face fluxes
+      roe_flux inviscid_flux_evaluator;
       if(options_.viscous){
         newtonian_viscous_flux viscous_flux_evaluator;
         if(options_.second_order_space){
@@ -341,7 +344,7 @@ void TimeSolverExplicitRK4::Solve()
       // Kokkos::fence();
 
       //Sum up all of the contributions
-      flux_residual(cells, res_vec, ts_data_.dt);
+      apply_cell_flux flux_residual(cells, res_vec, ts_data_.dt);
       // Kokkos::parallel_for(nowned_cells, flux_residual);
       // Kokkos::fence();
 

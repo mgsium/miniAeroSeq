@@ -16,17 +16,31 @@
  * and scatters to the 2 connected elements.
  */
 template<bool interior>
-void min_max_face(
-    ViewTypes::scalar_field_type cell_volumes_,
-    ViewTypes::face_cell_conn_type face_cell_conn_,
-    ViewTypes::face_cell_conn_type cell_flux_index_,
-    ViewTypes::solution_field_type cell_values_,
-    ViewTypes::vector_field_type face_normal_,
-    ViewTypes::cell_storage_field_type stencil_min_, 
-    ViewTypes::cell_storage_field_type stencil_max_,
-    const int * permute_vector_
-) {
-    const int i = permute_vector_[ii];
+struct min_max_face {
+  typedef typename ViewTypes::c_rnd_scalar_field_type scalar_field_type;
+  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
+  typedef typename ViewTypes::c_rnd_face_cell_conn_type face_cell_conn_type;
+  typedef typename ViewTypes::c_rnd_vector_field_type vector_field_type;
+  typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
+
+  scalar_field_type cell_volumes_;
+  face_cell_conn_type face_cell_conn_;
+  face_cell_conn_type cell_flux_index_;
+  solution_field_type cell_values_;
+  vector_field_type face_normal_;
+  cell_storage_field_type stencil_min_, stencil_max_;
+
+  min_max_face(Faces faces, solution_field_type cell_values, Cells cells,
+     cell_storage_field_type stencil_min, cell_storage_field_type stencil_max):
+    face_cell_conn_(faces.face_cell_conn_),
+    cell_flux_index_(faces.cell_flux_index_),
+    cell_values_(cell_values),
+    stencil_min_(stencil_min),
+    stencil_max_(stencil_max)
+  {}
+
+  void operator()( const int& ii )const{
+    // const int i = permute_vector_[ii];
 
     const int left_index = face_cell_conn_[i][0];
     const int right_index = face_cell_conn_[i][1];
@@ -99,7 +113,7 @@ void min_max_face(
     bool success=false;
     do{
       double old_left_min =  *left_cell_min;
-      double new_left_min = MathTools<device_type>::min(*left_cell_min, face_min);
+      double new_left_min = MathTools::min(*left_cell_min, face_min);
       double new_value = std::atomic_compare_exchange<double>(left_cell_min, old_left_min, new_left_min);
       success = new_value == new_left_min;
     } while(!success);
@@ -107,7 +121,7 @@ void min_max_face(
     success=false;
     do{
       double old_left_max =  *left_cell_max;
-      double new_left_max = MathTools<device_type>::max(*left_cell_max, face_max);
+      double new_left_max = MathTools::max(*left_cell_max, face_max);
       double new_value = std::atomic_compare_exchange<double>(left_cell_max, old_left_max, new_left_max);
       success = new_value == new_left_max;
     } while(!success);
@@ -117,7 +131,7 @@ void min_max_face(
       success=false;
       do{
         double old_right_min =  *right_cell_min;
-        double new_right_min = MathTools<device_type>::min(*right_cell_min, face_min);
+        double new_right_min = MathTools::min(*right_cell_min, face_min);
         double new_value = Kokkos::atomic_compare_exchange(right_cell_min, old_right_min, new_right_min);
         success = new_value == new_right_min;
       } while(!success);
@@ -125,7 +139,7 @@ void min_max_face(
       success=false;
       do{
         double old_right_max =  *right_cell_max;
-        double new_right_max = MathTools<device_type>::max(*right_cell_max, face_max);
+        double new_right_max = MathTools::max(*right_cell_max, face_max);
         double new_value = Kokkos::atomic_compare_exchange(right_cell_max, old_right_max, new_right_max);
         success = new_value == new_right_max;
       } while(!success);
@@ -142,7 +156,8 @@ void min_max_face(
     }
 #endif
   }
-}
+  }
+};
 
 /* initialize_min_max
  * functor that initializes the minimum and maximum values using very large or very small numbers.
@@ -185,8 +200,8 @@ void gather_min_max(
 
 #ifdef CELL_FLUX
       for(int iface = 0; iface<nfaces_; ++iface) {
-        stencil_min_(i,icomp) = MathTools<device_type>::min(stencil_min_(i,icomp),stored_min_(i,iface,icomp));
-        stencil_max_(i,icomp) = MathTools<device_type>::max(stencil_max_(i,icomp),stored_max_(i,iface,icomp));
+        stencil_min_(i,icomp) = MathTools::min(stencil_min_(i,icomp),stored_min_(i,iface,icomp));
+        stencil_max_(i,icomp) = MathTools::max(stencil_max_(i,icomp),stored_max_(i,iface,icomp));
       }
 #endif
     }
@@ -223,7 +238,7 @@ void gather_min_max(
 
 #ifdef CELL_FLUX
       for(int iface = 0; iface<nfaces_; ++iface) {
-        limiter_(i,icomp) = MathTools<device_type>::min(limiter_(i,icomp),stored_limiter_(i,iface,icomp));
+        limiter_(i,icomp) = MathTools::min(limiter_(i,icomp),stored_limiter_(i,iface,icomp));
       }
 #endif
     }
@@ -326,7 +341,7 @@ void limiter_face(
     bool success=false;
     do{
       double old_left_limiter =  *left_cell_limiter;
-      double new_left_limiter = MathTools<device_type>::min(*left_cell_limiter, limiter_left[icomp]);
+      double new_left_limiter = MathTools::min(*left_cell_limiter, limiter_left[icomp]);
       double new_value = Kokkos::atomic_compare_exchange(left_cell_limiter, old_left_limiter, new_left_limiter);
       success = new_value == new_left_limiter;
     } while(!success);
@@ -336,7 +351,7 @@ void limiter_face(
       success=false;
       do{
         double old_right_limiter =  *right_cell_limiter;
-        double new_right_limiter = MathTools<device_type>::min(*right_cell_limiter, limiter_right[icomp]);
+        double new_right_limiter = MathTools::min(*right_cell_limiter, limiter_right[icomp]);
         double new_value = Kokkos::atomic_compare_exchange(right_cell_limiter, old_right_limiter, new_right_limiter);
         success = new_value == new_right_limiter;
       } while(!success);
@@ -387,7 +402,7 @@ class StencilLimiter{
 
   void compute_min_max(solution_field_type sol_np1_vec) {
 
-    init_min_max(cells_->nfaces_, stencil_min_, stencil_max_, stored_min_, stored_max_);
+    initialize_min_max init_min_max(cells_->nfaces_, stencil_min_, stencil_max_, stored_min_, stored_max_);
     // Kokkos::parallel_for(mesh_data_->num_owned_cells, init_min_max);
 
     //Internal Faces
@@ -473,7 +488,7 @@ class StencilLimiter{
     */
   }
 
-  void communicate_limiter(solution_field_type limiter) {
+  /*void communicate_limiter(solution_field_type limiter) {
 
       extract_shared_vector<5> extract_shared_limiter(limiter, mesh_data_->send_local_ids, shared_vars);
       // Kokkos::parallel_for(mesh_data_->num_ghosts, extract_shared_limiter);
@@ -486,7 +501,7 @@ class StencilLimiter{
       insert_ghost_vector<5> insert_ghost_limiter(limiter, mesh_data_->recv_local_ids, ghosted_vars);
       // Kokkos::parallel_for(mesh_data_->num_ghosts, insert_ghost_limiter);
       // Kokkos::fence();
-  }
+  }*/
 
   private:
     Faces * internal_faces_;

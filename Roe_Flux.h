@@ -10,12 +10,17 @@
  * Functor to compute the Roe flux based on two states.
  * See Roe, Journal of Computational Physics, Volume 43, Issue 2, October 1981, Pages 357–372.
  */
-void compute_roe_flux(const double * const& primitives_left, const double * const& primitives_right,
+ struct roe_flux {
+  typedef Device execution_space;
+  
+  roe_flux() {
+  }
+
+  void compute_flux(const double * const& primitives_left, const double * const& primitives_right,
                     double * const& flux,
                     const double * const& face_normal,
                     const double * const& face_tangent,
                     const double * const& face_binormal) const {
-
     //Eigenvalue fix constants.
     const double efix_u = 0.1;
     const double efix_c = 0.1;
@@ -226,5 +231,6 @@ void compute_roe_flux(const double * const& primitives_left, const double * cons
       flux[icomp] -= 0.5*rlldq[icomp];
 
   }
+};
 
   #endif

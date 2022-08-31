@@ -127,4 +127,47 @@ void compute_face_flux(
   }
 }
 
+/* apply_cell_flux
+ * functor add the flux contributions to the residual
+ * uses either gather-sum or atomics for thread safety
+ */
+struct apply_cell_flux {
+
+  typedef typename ViewTypes::scalar_field_type scalar_field_type;
+  typedef typename ViewTypes::solution_field_type solution_field_type;
+  typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
+  typedef typename ViewTypes::cell_face_conn_type cell_face_conn_type;
+
+  int number_faces_;
+  scalar_field_type volume_;
+  cell_storage_field_type flux_;
+  solution_field_type residuals_;
+
+  double dt_;
+  double vol_;
+
+  apply_cell_flux(Cells cells, solution_field_type residuals, double dt) :
+      number_faces_(cells.nfaces_), volume_(cells.volumes_), flux_(
+          cells.cell_flux_), residuals_(residuals), dt_(dt) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(int i) const {
+
+    for (int icomp = 0; icomp < 5; ++icomp) {
+      residuals_(i, icomp) = 0.0;
+    }
+#ifdef ATOMICS_FLUX
+    for(int flux_id=0; flux_id<1; ++flux_id)
+#else
+    for (int flux_id = 0; flux_id < number_faces_; ++flux_id)
 #endif
+
+        {
+      for (int icomp = 0; icomp < 5; ++icomp) {
+        residuals_(i, icomp) = residuals_(i, icomp)
+            + dt_ / volume_(i) * flux_(i, flux_id, icomp);
+      }
+    }
+  }
+};

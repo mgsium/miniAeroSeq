@@ -13,40 +13,34 @@
  * wall is zero.
  */
 template<class InviscidFluxType, class ViscousFluxType>
-void compute_NoSlipBC_flux (
-    Faces faces, 
-    ViewTypes::solution_field_type cell_values,
-    Cells cells, 
-    InviscidFluxType inviscid_flux,
-    ViscousFluxType viscous_flux
-) {
-    typedef typename ViewTypes::solution_field_type solution_field_type;
-    typedef typename ViewTypes::face_cell_conn_type face_cell_conn_type;
-    typedef typename ViewTypes::vector_field_type vector_field_type;
-    typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
+struct compute_NoSlipBC_flux {
+  typedef typename ViewTypes::solution_field_type solution_field_type;
+  typedef typename ViewTypes::face_cell_conn_type face_cell_conn_type;
+  typedef typename ViewTypes::vector_field_type vector_field_type;
+  typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
 
-    face_cell_conn_type face_cell_conn_;
-    face_cell_conn_type cell_flux_index_;
-    solution_field_type cell_values_;
-    cell_storage_field_type cell_flux_;
-    vector_field_type cell_coordinates_;
-    vector_field_type face_coordinates_, face_normal_, face_tangent_,
-        face_binormal_;
-    InviscidFluxType inviscid_flux_evaluator_;
-    ViscousFluxType viscous_flux_evaluator_;
+  face_cell_conn_type face_cell_conn_;
+  face_cell_conn_type cell_flux_index_;
+  solution_field_type cell_values_;
+  cell_storage_field_type cell_flux_;
+  vector_field_type cell_coordinates_;
+  vector_field_type face_coordinates_, face_normal_, face_tangent_,
+      face_binormal_;
+  InviscidFluxType inviscid_flux_evaluator_;
+  ViscousFluxType viscous_flux_evaluator_;
 
-    face_cell_conn_   = faces.face_cell_conn_;
-    cell_flux_index_  = faces.cell_flux_index_; 
-    cell_values_      = cell_values;
-    cell_flux_        = cells.cell_flux_;
-    cell_coordinates_ = cells.coordinates_;
-    face_coordinates_ = faces.coordinates_;
-    face_normal_      = faces.face_normal_;
-    face_tangent_     = faces.face_tangent_;
-    face_binormal_    = faces.face_binormal_;
-    inviscid_flux_evaluator_ = inviscid_flux; 
-    viscous_flux_evaluator_  = viscous_flux; 
+  compute_NoSlipBC_flux(Faces faces, solution_field_type cell_values,
+      Cells cells, InviscidFluxType inviscid_flux,
+      ViscousFluxType viscous_flux) :
+      face_cell_conn_(faces.face_cell_conn_), cell_flux_index_(
+          faces.cell_flux_index_), cell_values_(cell_values), cell_flux_(
+          cells.cell_flux_), cell_coordinates_(cells.coordinates_), face_coordinates_(
+          faces.coordinates_), face_normal_(faces.face_normal_), face_tangent_(
+          faces.face_tangent_), face_binormal_(faces.face_binormal_), inviscid_flux_evaluator_(
+          inviscid_flux), viscous_flux_evaluator_(viscous_flux) {
+  }
 
+  void operator()(int i) const {
     int index = face_cell_conn_[i][0];
 
     double iflux[5];
@@ -116,7 +110,7 @@ void compute_NoSlipBC_flux (
       cell_flux_[index][cell_flux_index_[i][0]][icomp] = -iflux[icomp]+vflux[icomp];
     }
 #endif
-
+  }
 };
 
 #endif

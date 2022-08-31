@@ -49,27 +49,36 @@ public:
  * Functor to reset the flux contributions to the residual
  * to zero.
  */
-void zero_cell_flux(
-  Cells cells
-) {
-  ViewTypes::cell_storage_field_type cell_flux;
-  cell_flux = cells.cell_flux_;
-  ViewTypes::gradient_storage_field_type cell_gradient;
-  cell_gradient = cells.cell_gradient_;
-  int ncells = cells.ncells_;
-  int nfaces = cells.nfaces_;
+struct zero_cell_flux{
 
-  for (int icomp = 0; icomp < 5; ++icomp) {
-    #ifdef ATOMICS_FLUX
-    cell_flux[i][0][icomp] = 0.0;
-    #else
-    for(int iface = 0; iface<nfaces; ++iface) {
-      cell_flux[i][iface][icomp] = 0.0;
-    }
-    #endif
-    for(int iDir = 0; iDir < 3; ++iDir)
-    {
-      cell_gradient[i][0][icomp][iDir] = 0.0;
+  typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
+  typedef typename ViewTypes::gradient_storage_field_type gradient_storage_field_type;
+
+  const int ncells_;
+  const int nfaces_;
+  cell_storage_field_type cell_flux_;
+  gradient_storage_field_type cell_gradient_;
+
+  zero_cell_flux(Cells<Device> cells):
+        ncells_(cells.ncells_),
+        nfaces_(cells.nfaces_),
+        cell_flux_(cells.cell_flux_),
+        cell_gradient_(cells.cell_gradient_)
+        {}
+
+  void operator()( int i )const{
+    for (int icomp = 0; icomp < 5; ++icomp) {
+      #ifdef ATOMICS_FLUX
+      cell_flux_[i][0][icomp] = 0.0;
+      #else
+      for(int iface = 0; iface<nfaces_; ++iface) {
+        cell_flux_[i][iface][icomp] = 0.0;
+      }
+      #endif
+      for(int iDir = 0; iDir < 3; ++iDir)
+      {
+        cell_gradient_[i][0][icomp][iDir] = 0.0;
+      }
     }
   }
 }
