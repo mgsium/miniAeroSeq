@@ -12,7 +12,7 @@ struct no_viscous_flux {
     typedef typename ViewTypes::c_rnd_vector_field_type vector_field_type;
 
     no_viscous_flux(){}
-  KOKKOS_INLINE_FUNCTION
+
   void compute_flux(const double grad_primitive[5][3], const double * const primitive,
                     const double* const& a_vec,
                     double * vflux) const
@@ -29,7 +29,7 @@ struct newtonian_viscous_flux {
     enum { isViscous = true };
     
   newtonian_viscous_flux(){}
-  KOKKOS_INLINE_FUNCTION
+
   void compute_flux(const double grad_primitive[5][3], const double * const& primitive,
      const double* const& a_vec,
      double * const& vflux) const

@@ -11,7 +11,7 @@
  * See Roe, Journal of Computational Physics, Volume 43, Issue 2, October 1981, Pages 357–372.
  */
  struct roe_flux {
-  typedef Device execution_space;
+  // typedef Device execution_space;
   
   roe_flux() {
   }

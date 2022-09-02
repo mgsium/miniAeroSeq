@@ -7,15 +7,32 @@
 /*green_gauss_face
  * functor to compute internal face contributions for Green-Gauss gradient computation.
  */
-void green_gauss_face(
-    ViewTypes::scalar_field_type cell_volumes_,
-    ViewTypes::face_cell_conn_type face_cell_conn_,
-    ViewTypes::face_cell_conn_type cell_flux_index_,
-    ViewTypes::solution_field_type cell_values_,
-    ViewTypes::gradient_storage_field_type cell_gradient_,
-    ViewTypes::vector_field_type face_normal_,
-    const int * permute_vector_
-) {
+struct green_gauss_face{
+  typedef typename ViewTypes::c_rnd_scalar_field_type scalar_field_type;
+  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
+  typedef typename ViewTypes::c_rnd_face_cell_conn_type face_cell_conn_type;
+  typedef typename ViewTypes::c_rnd_vector_field_type vector_field_type;
+  typedef typename ViewTypes::gradient_storage_field_type gradient_storage_field_type;
+
+  scalar_field_type cell_volumes_;
+  face_cell_conn_type face_cell_conn_;
+  face_cell_conn_type cell_flux_index_;
+  solution_field_type cell_values_;
+  gradient_storage_field_type cell_gradient_;
+  vector_field_type face_normal_;
+  // Kokkos::View<const int*, Device> permute_vector_;
+
+  green_gauss_face(Faces faces, solution_field_type cell_values, Cells cells):
+    cell_volumes_(cells.volumes_),
+    face_cell_conn_(faces.face_cell_conn_),
+    cell_flux_index_(faces.cell_flux_index_),
+    cell_values_(cell_values),
+    cell_gradient_(cells.cell_gradient_),
+    face_normal_(faces.face_normal_)
+    // permute_vector_(faces.permute_vector_)
+  {}
+
+  void operator()( const int& ii )const{
     const int i = permute_vector_[ii];
     const int left_index = face_cell_conn_[i][0];
     const int right_index = face_cell_conn_[i][1];
@@ -71,19 +88,36 @@ void green_gauss_face(
 #endif
         }
     }
-}
+  }
+};
 
 /*green_gauss_boundary_face
  * functor to compute boundary face contributions for Green-Gauss gradient computation.
  */
-void green_gauss_boundary_face(
-    ViewTypes::scalar_field_type cell_volumes_,
-    ViewTypes::face_cell_conn_type face_cell_conn_,
-    ViewTypes::face_cell_conn_type cell_flux_index_,
-    ViewTypes::solution_field_type cell_values_,
-    ViewTypes::gradient_storage_field_type cell_gradient_,
-    ViewTypes::vector_field_type face_normal_
-) {
+struct green_gauss_boundary_face{
+  typedef typename ViewTypes::scalar_field_type scalar_field_type;
+  typedef typename ViewTypes::solution_field_type solution_field_type;
+  typedef typename ViewTypes::face_cell_conn_type face_cell_conn_type;
+  typedef typename ViewTypes::vector_field_type vector_field_type;
+  typedef typename ViewTypes::gradient_storage_field_type gradient_storage_field_type;
+
+  scalar_field_type cell_volumes_;
+  face_cell_conn_type face_cell_conn_;
+  face_cell_conn_type cell_flux_index_;
+  solution_field_type cell_values_;
+  gradient_storage_field_type cell_gradient_;
+  vector_field_type face_normal_;
+
+  green_gauss_boundary_face(Faces faces, solution_field_type cell_values, Cells cells):
+    cell_volumes_(cells.volumes_),
+    face_cell_conn_(faces.face_cell_conn_),
+    cell_flux_index_(faces.cell_flux_index_),
+    cell_values_(cell_values),
+    cell_gradient_(cells.cell_gradient_),
+    face_normal_(faces.face_normal_)
+  {}
+
+  void operator()( int i )const{
     int index = face_cell_conn_[i][0];
 
   const double gamma = 1.4;
@@ -136,16 +170,26 @@ void green_gauss_boundary_face(
     }
 #endif
 }
+};
 
 /* green_gauss_gradient_sum
  * functor to sum all of the contributions to the gradient
  * uses either gather-sum or atomics for thread safety.
  */
-void green_gauss_gradient_sum(
-    ViewTypes::gradient_storage_field_type face_gradient_,
-    ViewTypes::gradient_field_type gradient_,
-    int number_faces_
-) {
+struct green_gauss_gradient_sum{
+  typedef typename ViewTypes::gradient_storage_field_type gradient_storage_field_type;
+  typedef typename ViewTypes::gradient_field_type gradient_field_type;
+  gradient_storage_field_type face_gradient_;
+  gradient_field_type gradient_;
+  int number_faces_;
+
+  green_gauss_gradient_sum(Cells cells, gradient_field_type gradient):
+    face_gradient_(cells.cell_gradient_),
+    gradient_(gradient),
+    number_faces_(cells.nfaces_)
+  {}
+
+  void operator()( int i )const{
     for(int icomp = 0; icomp < 5; ++icomp)
   {
 
@@ -169,7 +213,8 @@ void green_gauss_gradient_sum(
         }
       }
     }
-}
+  }
+};
 
 /*GreenGauss
  * contains all of the functions need to compute and communicate cell gradients.
@@ -187,18 +232,18 @@ class GreenGauss {
       internal_faces_(internal_faces),
       bc_faces_(bc_faces),
       cells_(cells),
-      mesh_data_(mesh_data),
-      ghosted_gradient_vars("ghosted_gradient_vars", total_recv_count*5*3),
-      ghosted_gradient_vars_host(Kokkos::create_mirror(ghosted_gradient_vars)),
-      shared_gradient_vars("shared_gradient_vars", total_send_count*5*3),
-      shared_gradient_vars_host(Kokkos::create_mirror(shared_gradient_vars))
+      mesh_data_(mesh_data)
+      // ghosted_gradient_vars("ghosted_gradient_vars", total_recv_count*5*3),
+      // ghosted_gradient_vars_host(ghosted_gradient_vars),
+      // shared_gradient_vars("shared_gradient_vars", total_send_count*5*3),
+      // shared_gradient_vars_host(shared_gradient_vars)
         {}
 
     //computes the gradient on locally owned cells.
     void compute_gradients(solution_field_type sol_np1_vec, gradient_field_type gradients){
       //Internal Faces
       const int ninternal_faces = internal_faces_->nfaces_;
-      green_gauss_face(*internal_faces_, sol_np1_vec, *cells_);
+      green_gauss_face face_gradient(*internal_faces_, sol_np1_vec, *cells_);
       // Kokkos::parallel_for(ninternal_faces, face_gradient);
 
       //Boundary Faces
@@ -213,13 +258,13 @@ class GreenGauss {
       }
 
       //Sum of all contributions.
-      green_gauss_gradient_sum(*cells_, gradients);
+      green_gauss_gradient_sum gradient_sum(*cells_, gradients);
       // Kokkos::parallel_for(mesh_data_->num_owned_cells, gradient_sum);
       // Kokkos::fence();
     }
 
     //communicate the computed gradient for ghost cells.
-    void communicate_gradients(gradient_field_type gradients){
+    /*void communicate_gradients(gradient_field_type gradients){
       //copy values to be send from device to host
       extract_shared_tensor<5, 3> extract_shared_gradients(gradients, mesh_data_->send_local_ids, shared_gradient_vars);//sol_np1_vec, send_local_ids, shared_cells);
       // Kokkos::parallel_for(mesh_data_->num_ghosts,extract_shared_gradients);
@@ -233,17 +278,17 @@ class GreenGauss {
       // insert_ghost_tensor<5, 3> insert_ghost_gradients(gradients, mesh_data_->recv_local_ids, ghosted_gradient_vars);
       // Kokkos::parallel_for(mesh_data_->num_ghosts, insert_ghost_gradients);
       // Kokkos::fence();
-    }
+    }*/
 
   private:
     Faces * internal_faces_;
     std::vector<Faces *> * bc_faces_;
     Cells * cells_;
     struct MeshData * mesh_data_;
-    scalar_field_type ghosted_gradient_vars;
-    typename scalar_field_type::HostMirror ghosted_gradient_vars_host;
-    scalar_field_type shared_gradient_vars;
-    typename scalar_field_type::HostMirror shared_gradient_vars_host;
+    // scalar_field_type ghosted_gradient_vars;
+    // typename scalar_field_type::HostMirror ghosted_gradient_vars_host;
+    // scalar_field_type shared_gradient_vars;
+    // typename scalar_field_type::HostMirror shared_gradient_vars_host;
 };
 
 #endif

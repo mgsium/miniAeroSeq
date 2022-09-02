@@ -162,13 +162,23 @@ struct min_max_face {
 /* initialize_min_max
  * functor that initializes the minimum and maximum values using very large or very small numbers.
  */
-void initialize_min_max(
-    const int nfaces,
-    ViewTypes::solution_field_type stencil_min_, 
-    ViewTypes::solution_field_type stencil_max_,
-    ViewTypes::cell_storage_field_type stored_min_, 
-    ViewTypes::cell_storage_field_type stored_max_
-) {
+struct initialize_min_max{
+  typedef typename ViewTypes::solution_field_type solution_field_type;
+  typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
+
+  const int nfaces_;
+  solution_field_type stencil_min_, stencil_max_;
+  cell_storage_field_type stored_min_, stored_max_;
+
+  initialize_min_max(int nfaces, solution_field_type stencil_min, solution_field_type stencil_max, cell_storage_field_type stored_min, cell_storage_field_type stored_max):
+        nfaces_(nfaces),
+        stencil_min_(stencil_min),
+        stencil_max_(stencil_max),
+        stored_min_(stored_min),
+        stored_max_(stored_max)
+        {}
+    
+  void operator()( int i )const{
     for (int icomp = 0; icomp < 5; ++icomp) {
       stencil_min_[i][icomp] = 1.0e300;
       stencil_max_[i][icomp] = -1.0e300;
@@ -177,21 +187,33 @@ void initialize_min_max(
         stored_max_[i][iface][icomp] = -1.0e300;
       }
     }
-}
+  }
+};
 
 /* gather_min_max
  * functor that computes the minimum or maximum value of each variable over the stencil
  * of each cell.  The stencil consists of all cells which share a face with
  * this cell.
  */
-void gather_min_max(
-    const int ncells,
-    const int nfaces,
-    ViewTypes::solution_field_type stencil_min_, 
-    ViewTypes::solution_field_type stencil_max_,
-    ViewTypes::cell_storage_field_type stored_min_, 
-    ViewTypes::cell_storage_field_type stored_max_
-) {
+struct gather_min_max{
+
+  typedef typename ViewTypes::solution_field_type solution_field_type;
+  typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
+
+  const int ncells_;
+  const int nfaces_;
+  cell_storage_field_type stored_min_, stored_max_;
+  solution_field_type stencil_min_, stencil_max_;
+
+  gather_min_max(Cells cells, cell_storage_field_type stored_min, cell_storage_field_type stored_max, solution_field_type stencil_min, solution_field_type stencil_max):
+        ncells_(cells.ncells_),
+        nfaces_(cells.nfaces_),
+        stored_min_(stored_min),
+        stored_max_(stored_max),
+        stencil_min_(stencil_min),
+        stencil_max_(stencil_max)
+        {}
+  void operator()( int i )const{
     for (int icomp = 0; icomp < 5; ++icomp) {
 #ifdef ATOMICS_FLUX
       stencil_min_(i,icomp) = stored_min_(i,0,icomp);
@@ -205,7 +227,8 @@ void gather_min_max(
       }
 #endif
     }
-}
+  }
+};
 
 /* initialize_limiter
  * functor that initializes the cell limiter value to 1.0.
@@ -249,20 +272,38 @@ void gather_min_max(
  * to the connected elements.  Uses gather-sum or atomics for thread safety.
  */
 template <bool interior>
-void limiter_face(
-    ViewTypes::scalar_field_type cell_volumes_,
-    ViewTypes::face_cell_conn_type face_cell_conn_,
-    ViewTypes::face_cell_conn_type cell_flux_index_,
-    ViewTypes::solution_field_type cell_min_, 
-    ViewTypes::solution_field_type cell_max_, 
-    ViewTypes::solution_field_type cell_values_,
-    ViewTypes::vector_field_type face_coordinates_, 
-    ViewTypes::vector_field_type cell_coordinates_,
-    ViewTypes::gradient_field_type cell_gradients_,
-    ViewTypes::cell_storage_field_type limiter_,
-    const int * permute_vector_
-) {
-    const int i = permute_vector_[ii];
+struct limiter_face{
+  typedef typename ViewTypes::c_rnd_scalar_field_type scalar_field_type;
+  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
+  typedef typename ViewTypes::c_rnd_face_cell_conn_type face_cell_conn_type;
+  typedef typename ViewTypes::c_rnd_vector_field_type vector_field_type;
+  typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
+  typedef typename ViewTypes::c_rnd_gradient_field_type gradient_field_type;
+
+  scalar_field_type cell_volumes_;
+  face_cell_conn_type face_cell_conn_;
+  face_cell_conn_type cell_flux_index_;
+  solution_field_type cell_min_, cell_max_, cell_values_;
+  vector_field_type face_coordinates_, cell_coordinates_;
+  gradient_field_type cell_gradients_;
+  cell_storage_field_type limiter_;
+
+  limiter_face(Faces faces, solution_field_type cell_values, Cells cells,
+    gradient_field_type gradients,
+    solution_field_type cell_min, solution_field_type cell_max, cell_storage_field_type limiter):
+    face_cell_conn_(faces.face_cell_conn_),
+    cell_flux_index_(faces.cell_flux_index_),
+    cell_min_(cell_min),
+    cell_max_(cell_max),
+    cell_values_(cell_values),
+    face_coordinates_(faces.coordinates_),
+    cell_coordinates_(cells.coordinates_),
+    cell_gradients_(gradients),
+    limiter_(limiter)
+  {}
+
+  void operator()( const int& ii )const{
+  const int i = permute_vector_[ii];
   const int left_index = face_cell_conn_[i][0];
   const int right_index = face_cell_conn_[i][1];
 
@@ -370,6 +411,7 @@ void limiter_face(
     }
 #endif
 }
+};
 
 /*StencilLimiter
  * Class to compute cell value of the stencil limiter.
@@ -390,9 +432,9 @@ class StencilLimiter{
       cells_(cells),
       mesh_data_(mesh_data),
       ghosted_vars("ghosted_vars", total_recv_count*5),
-      ghosted_vars_host(Kokkos::create_mirror(ghosted_vars)),
+      ghosted_vars_host(ghosted_vars),
       shared_vars("shared_vars", total_send_count*5),
-      shared_vars_host(Kokkos::create_mirror(shared_vars)),
+      shared_vars_host(shared_vars),
       stored_min_("stored_min", cells->ncells_*5, cells->nfaces_),
       stored_max_("stored_max", cells->ncells_*5, cells->nfaces_),
       stored_limiter_("stored_limiter", cells->ncells_*5, cells->nfaces_),

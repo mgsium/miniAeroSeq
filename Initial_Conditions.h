@@ -57,22 +57,31 @@ void initialize_sod3d(
  * set constant condition for entire flow field
  * This constant state is passed in as flow_state
  */
-void initialize_constant(
-    Cells cells_,
-    ViewTypes::solution_field_type soln_,
-    ViewTypes::solution_field_type solnp1_,
-    double * flow_state
-) {
-    double flow_state_[5];
+ struct initialize_constant{
+
+  typedef typename ViewTypes::solution_field_type solution_field_type;
+
+  struct Cells cells_;
+  solution_field_type soln_,solnp1_;
+  double flow_state_[5];
+
+  initialize_constant(struct Cells cells, solution_field_type soln, solution_field_type solnp1, double * flow_state) :
+    cells_(cells),
+    soln_(soln),
+    solnp1_(solnp1)
+  {
     for(int i=0; i<5; ++i)
       flow_state_[i]=flow_state[i];
-
+  }
+  
+  void operator()( int i )const{
     for(int j=0; j<5; j++)
       soln_[i][j]=flow_state_[j];
 
     for(int icomp=0; icomp<5; icomp++){
       solnp1_[i][icomp]=soln_[i][icomp];
     }
-}
+  }
+};
 
 #endif

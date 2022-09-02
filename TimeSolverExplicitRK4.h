@@ -204,6 +204,10 @@ void TimeSolverExplicitRK4::Solve()
     solution_field_type residuals_host = res_vec;
     vector_field_type coordinates_host = cells.coordinates_;
 
+    //setup ghosting information
+    int num_procs_, my_id_;
+    int total_send_count=0, total_recv_count=0;
+
     // Gradients
     GreenGauss green_gauss_gradient;
 
@@ -272,11 +276,11 @@ void TimeSolverExplicitRK4::Solve()
       if(options_.viscous){
         newtonian_viscous_flux viscous_flux_evaluator;
         if(options_.second_order_space){
-          compute_face_flux<true>(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
+          compute_face_flux<true, roe_flux, newtonian_viscous_flux >(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
           // Kokkos::parallel_for(ninternal_faces,fluxop);
         }
         else{
-          compute_face_flux<false>(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
+          compute_face_flux<false, roe_flux, newtonian_viscous_flux>(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
           // Kokkos::parallel_for(ninternal_faces,fluxop);
         }
         // Kokkos::fence();
@@ -284,11 +288,11 @@ void TimeSolverExplicitRK4::Solve()
       else{
         no_viscous_flux viscous_flux_evaluator;
         if(options_.second_order_space){
-          compute_face_flux<true>(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
+          compute_face_flux<true, roe_flux, no_viscous_flux >(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
           // Kokkos::parallel_for(ninternal_faces,fluxop);
         }
         else{
-          compute_face_flux<false>(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
+          compute_face_flux<false, roe_flux, no_viscous_flux >(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
           // Kokkos::parallel_for(ninternal_faces,fluxop);
         }
         // Kokkos::fence();

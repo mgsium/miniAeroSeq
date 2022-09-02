@@ -3,6 +3,8 @@
 #include "Cell.h"
 #include "ViewTypes.h"
 
+#include <memory>
+
 /*Cells
  * struct containing the cell data used for simulation.
  * Includes things such as coordinates, volume, the gradient, and
@@ -29,19 +31,31 @@ public:
 
    Cells(int ncells, int faces_per_elem) :
    ncells_(ncells),
-   nfaces_(faces_per_elem),
-   coordinates_("cell_coordinates", ncells),
-   volumes_("cell_volumes", ncells),
+   nfaces_(faces_per_elem)
+   // coordinates_("cell_coordinates", ncells)
+   // volumes_("cell_volumes", ncells)
 //TODO: Make this more efficient for atomics.
-
-#ifdef ATOMICS_FLUX
-   cell_flux_("cell_flux", ncells, 1),
-   cell_gradient_("gradient", ncells, 1)
-#else
-   cell_flux_("cell_flux", ncells, faces_per_elem), // Faces_per_elem needed for  gather-sum option.
-   cell_gradient_("gradient", ncells, faces_per_elem)
-#endif
    {
+    // Allocating memory for volumes
+    volumes_ = (double *) malloc(sizeof(double) * ncells);
+
+    int mult = 1;
+#ifndef ATOMICS_FLUX
+    mult = faces_per_elem;
+#endif
+
+    // Allocating memory for flux & coordinates
+    for (int i = 0; i < 3; i++) {
+      cell_flux_[i] = (double **) malloc(sizeof(double) * ncells * mult);
+      coordinates_[i] = (double *) malloc(sizeof(double) * ncells);
+    }
+
+    // Allocating memory for gradient storage
+    for (int i = 0; i < 5; i++) {
+      for (int j = 0; j < 3; j++) 
+        cell_gradient_[i][j] = (double **) malloc(sizeof(double) * ncells * mult);
+    }
+
    }
 };
 
@@ -56,32 +70,34 @@ struct zero_cell_flux{
 
   const int ncells_;
   const int nfaces_;
-  cell_storage_field_type cell_flux_;
-  gradient_storage_field_type cell_gradient_;
+  Cells cells_;
+  // cell_storage_field_type cell_flux_;
+  // gradient_storage_field_type cell_gradient_;
 
-  zero_cell_flux(Cells<Device> cells):
+  zero_cell_flux(Cells cells):
         ncells_(cells.ncells_),
         nfaces_(cells.nfaces_),
-        cell_flux_(cells.cell_flux_),
-        cell_gradient_(cells.cell_gradient_)
+        cells_(cells)
+        // cell_flux_(cells.cell_flux_),
+        // cell_gradient_(cells.cell_gradient_)
         {}
 
   void operator()( int i )const{
     for (int icomp = 0; icomp < 5; ++icomp) {
       #ifdef ATOMICS_FLUX
-      cell_flux_[i][0][icomp] = 0.0;
+      cells_.cell_flux_[i][0][icomp] = 0.0;
       #else
       for(int iface = 0; iface<nfaces_; ++iface) {
-        cell_flux_[i][iface][icomp] = 0.0;
+        cells_.cell_flux_[i][iface][icomp] = 0.0;
       }
       #endif
       for(int iDir = 0; iDir < 3; ++iDir)
       {
-        cell_gradient_[i][0][icomp][iDir] = 0.0;
+        cells_.cell_gradient_[i][0][icomp][iDir] = 0.0;
       }
     }
   }
-}
+};
 
 /*copy_cell_data
  * functor to copy the Cell information from the setup datastructure to
@@ -89,7 +105,7 @@ struct zero_cell_flux{
  */
 void copy_cell_data(Cells device_cells, std::vector<Cell> & mesh_cells){
   
-  typedef typename (double *) scalar_field_type;
+  typedef double * scalar_field_type;
   typedef typename ViewTypes::vector_field_type vector_field_type;
 
   int ncells = mesh_cells.size();

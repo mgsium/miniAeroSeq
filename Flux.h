@@ -17,26 +17,43 @@
  * using either Gather-Sum or Atomics for thread safety.
  */
 template<bool second_order, class InviscidFluxType, class ViscousFluxType>
-void compute_face_flux(
-    Faces faces,
-    ViewTypes::solution_field_type cell_values_,
-    ViewTypes::gradient_field_type cell_gradients_,
-    ViewTypes::solution_field_type cell_limiters_,
-    Cells cells, 
-    InviscidFluxType inviscid_flux,
-    ViscousFluxType viscous_flux
-) {
-    ViewTypes::face_cell_conn_type face_cell_conn_ = faces.face_cell_conn_;
-    ViewTypes::face_cell_conn_type cell_flux_index_ = faces.cell_flux_index_;
-    ViewTypes::vector_field_type cell_coordinates_ = cells.coordinates_;
-    ViewTypes::cell_storage_field_type cell_flux_ = cells.cell_flux_;
-    ViewTypes::vector_field_type face_coordinates_ = faces.coordinates_;
-    ViewTypes::vector_field_type face_normal_ = faces.face_normal_;
-    ViewTypes::vector_field_type face_tangent_ = faces.face_tangent_;
-    ViewTypes::vector_field_type face_binormal_ = faces.face_binormal_;
+struct compute_face_flux {
+  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
+  typedef typename ViewTypes::c_rnd_face_cell_conn_type face_cell_conn_type;
+  typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
+  typedef typename ViewTypes::c_vector_field_type vector_field_type;
+  typedef typename ViewTypes::c_rnd_gradient_field_type gradient_field_type;
 
+  face_cell_conn_type face_cell_conn_;
+  face_cell_conn_type cell_flux_index_;
+  solution_field_type cell_values_;
+  gradient_field_type cell_gradients_;
+  solution_field_type cell_limiters_;
+  vector_field_type cell_coordinates_;
+  cell_storage_field_type cell_flux_;
+  vector_field_type face_coordinates_, face_normal_, face_tangent_,
+      face_binormal_;
+  // Kokkos::View<const int*, Device> permute_vector_;
+  InviscidFluxType inviscid_flux_evaluator_;
+  ViscousFluxType viscous_flux_evaluator_;
+
+
+  compute_face_flux(Faces faces, solution_field_type cell_values,
+      gradient_field_type cell_gradients, solution_field_type cell_limiters,
+      Cells cells, InviscidFluxType inviscid_flux,
+      ViscousFluxType viscous_flux) :
+      face_cell_conn_(faces.face_cell_conn_), cell_flux_index_(
+          faces.cell_flux_index_), cell_values_(cell_values), cell_gradients_(
+          cell_gradients), cell_limiters_(cell_limiters), cell_coordinates_(
+          cells.coordinates_), cell_flux_(cells.cell_flux_), face_coordinates_(
+          faces.coordinates_), face_normal_(faces.face_normal_), face_tangent_(
+          faces.face_tangent_), face_binormal_(faces.face_binormal_), inviscid_flux_evaluator_(
+          inviscid_flux), viscous_flux_evaluator_(viscous_flux) /*, permute_vector_(faces.permute_vector_) */ {
+  }
+  
+  void operator()(const int& ii) const {
     const int i = permute_vector_[ii];
-    const int left_index = face_cell_conn_[i][0]];
+    const int left_index = face_cell_conn_[i][0];
     const int right_index = face_cell_conn_[i][1];
 
     double flux[5];
@@ -50,8 +67,8 @@ void compute_face_flux(
       conservatives_r[icomp] = cell_values_[right_index][icomp];
     }
 
-    ComputePrimitives[conservatives_l][primitives_l];
-    ComputePrimitives[conservatives_r][primitives_r];
+    ComputePrimitives(conservatives_l, primitives_l);
+    ComputePrimitives(conservatives_r, primitives_r);
 
     if (second_order) {
 
@@ -125,7 +142,7 @@ void compute_face_flux(
 #endif
 
   }
-}
+};
 
 /* apply_cell_flux
  * functor add the flux contributions to the residual
@@ -151,7 +168,6 @@ struct apply_cell_flux {
           cells.cell_flux_), residuals_(residuals), dt_(dt) {
   }
 
-  KOKKOS_INLINE_FUNCTION
   void operator()(int i) const {
 
     for (int icomp = 0; icomp < 5; ++icomp) {
@@ -165,9 +181,11 @@ struct apply_cell_flux {
 
         {
       for (int icomp = 0; icomp < 5; ++icomp) {
-        residuals_(i, icomp) = residuals_(i, icomp)
-            + dt_ / volume_(i) * flux_(i, flux_id, icomp);
+        residuals_[i][icomp] = residuals_[i][icomp]
+            + dt_ / volume_[i] * flux_[i][flux_id][icomp];
       }
     }
   }
 };
+
+#endif

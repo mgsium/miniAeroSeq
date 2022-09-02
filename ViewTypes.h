@@ -1,6 +1,8 @@
 #ifndef INCLUDE_VIEWTYPES_H_
 #define INCLUDE_VIEWTYPES_H_
 
+#include <memory>
+
 /*ViewTypes
  * struct that contains typedefs of commonly used Kokkos Views.
  */
@@ -23,7 +25,7 @@ struct ViewTypes{
   typedef const double * c_gradient_field_type[5][3];
   typedef const double ** c_gradient_storage_field_type[5][3];
 
-  typedef const double c_rnd_scalar_field_type;
+  typedef const double * c_rnd_scalar_field_type;
   typedef const double * c_rnd_solution_field_type[5];
   typedef const int * c_rnd_face_cell_conn_type[2]; 
   typedef const int ** c_rnd_cell_face_conn_type;
