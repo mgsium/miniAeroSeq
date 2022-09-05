@@ -11,7 +11,8 @@ void initialize_sod3d(
     Cells cells_,
     ViewTypes::solution_field_type soln_,
     ViewTypes::solution_field_type solnp1_,
-    double midx_
+    double midx_,
+    int i
 ) {
     const double Rgas = 287.05;
     const double gamma = 1.4;

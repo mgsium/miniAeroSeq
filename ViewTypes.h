@@ -16,7 +16,7 @@ struct ViewTypes{
   typedef double * gradient_field_type[5][3];
   typedef double ** gradient_storage_field_type[5][3];
 
-  typedef const double* c_scalar_field_type;
+  typedef const double * c_scalar_field_type;
   typedef const double * c_solution_field_type[5];
   typedef const int * c_face_cell_conn_type[2];
   typedef const int ** c_cell_face_conn_type;

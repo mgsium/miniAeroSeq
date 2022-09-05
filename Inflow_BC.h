@@ -12,10 +12,10 @@
  */
 template<class FluxType>
 struct compute_inflowBC_flux {
-  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
-  typedef typename ViewTypes::c_rnd_face_cell_conn_type face_cell_conn_type;
+  typedef typename ViewTypes::solution_field_type solution_field_type;
+  typedef typename ViewTypes::face_cell_conn_type face_cell_conn_type;
   typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
-  typedef typename ViewTypes::c_vector_field_type vector_field_type;
+  typedef typename ViewTypes::vector_field_type vector_field_type;
 
   face_cell_conn_type face_cell_conn_;
   face_cell_conn_type cell_flux_index_;
@@ -27,13 +27,26 @@ struct compute_inflowBC_flux {
 
   compute_inflowBC_flux(Faces faces, solution_field_type cell_values,
       Cells cells, double * flow_state, FluxType flux) :
-      face_cell_conn_(faces.face_cell_conn_), cell_flux_index_(
-          faces.cell_flux_index_), cell_values_(cell_values), cell_flux_(
-          cells.cell_flux_), face_normal_(faces.face_normal_), face_tangent_(
-          faces.face_tangent_), face_binormal_(faces.face_binormal_), flux_evaluator_(
-          flux) {
-    for (int i = 0; i < 5; ++i)
+      flux_evaluator_(flux) {
+    for (int i = 0; i < 5; ++i) {
       flow_state_[i] = flow_state[i];
+    }
+
+    for (int i = 0; i < 5; i++) {
+      cell_values_[i] = cell_values[i];
+      cell_flux_[i] = cells.cell_flux_[i];
+    }
+
+    for (int i = 0; i < 3; i++) {
+      face_normal_[i]   = faces.face_normal_[i];
+      face_tangent_[i]  = faces.face_tangent_[i];
+      face_binormal_[i] = faces.face_binormal_[i];
+    }
+
+    for (int i = 0; i < 2; i++) {
+      face_cell_conn_[i] = faces.face_cell_conn_[i];
+      cell_flux_index_[i] = faces.cell_flux_index_[i];
+    }
   }
 
   void operator()(int i) const {

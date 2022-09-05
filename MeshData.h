@@ -23,7 +23,7 @@ struct MeshData{
   std::vector<int> sendCount, recvCount;
 
   //Device data
-  typedef (int *) id_map_type;
+  typedef int * id_map_type;
   id_map_type send_local_ids, recv_local_ids;
   Cells mesh_cells;
   Faces internal_faces;

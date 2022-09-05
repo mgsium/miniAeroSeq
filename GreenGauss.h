@@ -24,13 +24,14 @@ struct green_gauss_face{
 
   green_gauss_face(Faces faces, solution_field_type cell_values, Cells cells):
     cell_volumes_(cells.volumes_),
-    face_cell_conn_(faces.face_cell_conn_),
-    cell_flux_index_(faces.cell_flux_index_),
-    cell_values_(cell_values),
-    cell_gradient_(cells.cell_gradient_),
-    face_normal_(faces.face_normal_)
+    cell_gradient_(cells.cell_gradient_)
     // permute_vector_(faces.permute_vector_)
-  {}
+  {
+    std::copy(faces.face_cell_conn_, faces.face_cell_conn_ + 2, face_cell_conn_);
+    std::copy(faces.cell_flux_index_, faces.cell_flux_index_ + 2, cell_flux_index_);
+    std::copy(cell_values, cell_values + 5, cell_values);
+    std::copy(faces.face_normal_, faces.face_normal_ + 3, face_normal_);
+  }
 
   void operator()( const int& ii )const{
     const int i = permute_vector_[ii];
@@ -110,12 +111,13 @@ struct green_gauss_boundary_face{
 
   green_gauss_boundary_face(Faces faces, solution_field_type cell_values, Cells cells):
     cell_volumes_(cells.volumes_),
-    face_cell_conn_(faces.face_cell_conn_),
-    cell_flux_index_(faces.cell_flux_index_),
-    cell_values_(cell_values),
-    cell_gradient_(cells.cell_gradient_),
-    face_normal_(faces.face_normal_)
-  {}
+    cell_gradient_(cells.cell_gradient_)
+  {
+    std::copy(faces.face_cell_conn_, faces.face_cell_conn_ + 2, face_cell_conn_);
+    std::copy(faces.cell_flux_index_, faces.cell_flux_index_ + 2, cell_flux_index_);
+    std::copy(cell_values, cell_values + 5, cell_values);
+    std::copy(faces.face_normal_, faces.face_normal_ + 3, face_normal_);
+  }
 
   void operator()( int i )const{
     int index = face_cell_conn_[i][0];

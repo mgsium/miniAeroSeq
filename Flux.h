@@ -171,7 +171,7 @@ struct apply_cell_flux {
   void operator()(int i) const {
 
     for (int icomp = 0; icomp < 5; ++icomp) {
-      residuals_(i, icomp) = 0.0;
+      residuals_[i][icomp] = 0.0;
     }
 #ifdef ATOMICS_FLUX
     for(int flux_id=0; flux_id<1; ++flux_id)

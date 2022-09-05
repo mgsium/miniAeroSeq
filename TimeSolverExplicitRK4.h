@@ -2,6 +2,7 @@
 #define INCLUDE_TIMESOLVER_EXPLICIT_RK4_H_
 
 // C++ system files
+#include <algorithm>
 #include <cstdio>
 #include <vector>
 #include <cmath>
@@ -185,11 +186,11 @@ void TimeSolverExplicitRK4::Solve()
     const int ncells = cells.ncells_;
 
     //Solution Variables
-    solution_field_type res_vec("residual", ncells);
-    ViewTypes::solution_field_type sol_n_vec("solution_n", ncells);
-    solution_field_type sol_np1_vec("solution_np1", ncells);
-    solution_field_type sol_temp_vec("solution_temp", ncells); //Needed for RK4 Stages.
-
+    solution_field_type res_vec, sol_n_vec, sol_np1_vec, sol_temp_vec;
+    /*solution_field_type sol_n_vec = (double **) malloc(sizeof(double *) * ncells);
+    solution_field_type sol_np1_vec = (double **) malloc(sizeof(double *) * ncells);
+    solution_field_type sol_temp_vec = (double **) malloc(sizeof(double *) * ncells); //Needed for RK4 Stages.
+    */
     gradient_field_type gradients;
     solution_field_type limiters;
     //Careful not to allocate the views unless they are needed.
@@ -200,9 +201,12 @@ void TimeSolverExplicitRK4::Solve()
         limiters = solution_field_type("limiters", ncells);
     }
 
-    solution_field_type solution_vec   = sol_n_vec;
-    solution_field_type residuals_host = res_vec;
+    solution_field_type solution_vec;
+    std::copy(sol_n_vec, sol_n_vec + 5, solution_field_type);
+    solution_field_type residuals_host;
+    std::copy(res_vec, res_vec + 5, residuals_host);
     vector_field_type coordinates_host = cells.coordinates_;
+    std::copy(cells.coordinates_, cells.coordinates_ + 5, coordinates_host);
 
     //setup ghosting information
     int num_procs_, my_id_;
@@ -225,7 +229,8 @@ void TimeSolverExplicitRK4::Solve()
 
    if(options_.problem_type == 0)
    {
-      initialize_sod3d(cells, sol_n_vec, sol_temp_vec, midx);
+      for (int i = 0; i < nowned_cells; i++)
+        initialize_sod3d(cells, sol_n_vec, sol_temp_vec, midx, i);
       // Kokkos::parallel_for(nowned_cells, init_fields);
     }
    else
@@ -239,7 +244,7 @@ void TimeSolverExplicitRK4::Solve()
     // Kokkos::fence();
 
     for (ts_data_.time_it = 1; ts_data_.time_it <= ts_data_.max_its; ++ts_data_.time_it)
-   {
+    {  
       // Increment the time, do not need to worry about updating it for stages because no source terms depend on the time.
       ts_data_.time += ts_data_.dt;
 
@@ -269,7 +274,7 @@ void TimeSolverExplicitRK4::Solve()
         if(options_.second_order_space){
           stencil_limiter.compute_min_max(sol_temp_vec);
         }
-      }
+
 
       //Compute internal face fluxes
       roe_flux inviscid_flux_evaluator;
@@ -305,7 +310,7 @@ void TimeSolverExplicitRK4::Solve()
       for(; ef_iter != ef_iter_end; ++ef_iter){
         Faces bc_faces = *ef_iter;
         const int nboundary_faces = bc_faces.nfaces_;
-        compute_extrapolateBC_flux<roe_flux >(bc_faces, sol_temp_vec, cells, inviscid_flux_evaluator);
+        compute_extrapolateBC_flux<roe_flux > boundary_fluxop(bc_faces, sol_temp_vec, cells, inviscid_flux_evaluator);
         // Kokkos::parallel_for(nboundary_faces,boundary_fluxop);
       }
       // Kokkos::fence();
@@ -317,7 +322,7 @@ void TimeSolverExplicitRK4::Solve()
       for(; tf_iter != tf_iter_end; ++tf_iter){
         Faces bc_faces = *tf_iter;
         const int nboundary_faces = bc_faces.nfaces_;
-        compute_tangentBC_flux<roe_flux >(bc_faces, sol_temp_vec, cells, inviscid_flux_evaluator);
+        compute_tangentBC_flux<roe_flux > boundary_fluxop(bc_faces, sol_temp_vec, cells, inviscid_flux_evaluator);
         // Kokkos::parallel_for(nboundary_faces,boundary_fluxop);
       }
       // Kokkos::fence();
@@ -362,6 +367,7 @@ void TimeSolverExplicitRK4::Solve()
     for (int i=0; i < nowned_cells; i++)
       copy(sol_np1_vec, sol_n_vec, i);
     // Kokkos::parallel_for(nowned_cells, copy_solution);
+  }
 
   /*if(my_id_==0){
      fprintf(stdout,"\n ... Device Run time: %8.2f seconds ...\n", timer.seconds());
@@ -395,3 +401,5 @@ void TimeSolverExplicitRK4::Solve()
      output_file.close();
    }
 }
+
+#endif

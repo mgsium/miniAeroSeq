@@ -32,12 +32,26 @@ struct compute_NoSlipBC_flux {
   compute_NoSlipBC_flux(Faces faces, solution_field_type cell_values,
       Cells cells, InviscidFluxType inviscid_flux,
       ViscousFluxType viscous_flux) :
-      face_cell_conn_(faces.face_cell_conn_), cell_flux_index_(
-          faces.cell_flux_index_), cell_values_(cell_values), cell_flux_(
-          cells.cell_flux_), cell_coordinates_(cells.coordinates_), face_coordinates_(
-          faces.coordinates_), face_normal_(faces.face_normal_), face_tangent_(
-          faces.face_tangent_), face_binormal_(faces.face_binormal_), inviscid_flux_evaluator_(
+          inviscid_flux_evaluator_(
           inviscid_flux), viscous_flux_evaluator_(viscous_flux) {
+
+            for (int i = 0; i < 5; i++) {
+              cell_values_[i] = cell_values[i];
+              cell_flux_[i] = cells.cell_flux_[i];
+            }
+
+            for (int i = 0; i < 3; i++) {
+              face_normal_[i]   = faces.face_normal_[i];
+              face_tangent_[i]  = faces.face_tangent_[i];
+              face_binormal_[i] = faces.face_binormal_[i];
+              cell_coordinates_[i] = cells.coordinates_[i];
+              face_coordinates_[i] = faces.coordinates_[i];
+            }
+
+            for (int i = 0; i < 2; i++) {
+              face_cell_conn_[i] = faces.face_cell_conn_[i];
+              cell_flux_index_[i] = faces.cell_flux_index_[i];
+            }
   }
 
   void operator()(int i) const {
