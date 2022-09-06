@@ -68,7 +68,7 @@ struct compute_NoSlipBC_flux {
       vflux[icomp] = 0.0;
     }
 
-    ComputePrimitives[conservatives][primitives_l];
+    ComputePrimitives(conservatives, primitives_l);
 
     //scale normal since it includes area.
     double area_norm = 0;

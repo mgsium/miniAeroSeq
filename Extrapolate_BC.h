@@ -13,7 +13,7 @@
  */
 template<class FluxType>
 struct compute_extrapolateBC_flux {
-  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
+  typedef typename ViewTypes::solution_field_type solution_field_type;
   typedef typename ViewTypes::c_rnd_face_cell_conn_type face_cell_conn_type;
   typedef typename ViewTypes::c_vector_field_type vector_field_type;
   typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;

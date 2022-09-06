@@ -9,7 +9,7 @@
  */
 struct green_gauss_face{
   typedef typename ViewTypes::c_rnd_scalar_field_type scalar_field_type;
-  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
+  typedef typename ViewTypes::solution_field_type solution_field_type;
   typedef typename ViewTypes::c_rnd_face_cell_conn_type face_cell_conn_type;
   typedef typename ViewTypes::c_rnd_vector_field_type vector_field_type;
   typedef typename ViewTypes::gradient_storage_field_type gradient_storage_field_type;
@@ -20,17 +20,22 @@ struct green_gauss_face{
   solution_field_type cell_values_;
   gradient_storage_field_type cell_gradient_;
   vector_field_type face_normal_;
-  // Kokkos::View<const int*, Device> permute_vector_;
+  const int* permute_vector_;
 
   green_gauss_face(Faces faces, solution_field_type cell_values, Cells cells):
     cell_volumes_(cells.volumes_),
-    cell_gradient_(cells.cell_gradient_)
-    // permute_vector_(faces.permute_vector_)
+    // cell_gradient_(cells.cell_gradient_)
+    permute_vector_(faces.permute_vector_)
   {
     std::copy(faces.face_cell_conn_, faces.face_cell_conn_ + 2, face_cell_conn_);
     std::copy(faces.cell_flux_index_, faces.cell_flux_index_ + 2, cell_flux_index_);
     std::copy(cell_values, cell_values + 5, cell_values);
     std::copy(faces.face_normal_, faces.face_normal_ + 3, face_normal_);
+
+    for(int i = 0; i < 5; i++) {
+      for (int j = 0; j < 3; j++)
+        cell_gradient_[i][j] = cells.cell_gradient_[i][j];
+    }
   }
 
   void operator()( const int& ii )const{
@@ -110,13 +115,18 @@ struct green_gauss_boundary_face{
   vector_field_type face_normal_;
 
   green_gauss_boundary_face(Faces faces, solution_field_type cell_values, Cells cells):
-    cell_volumes_(cells.volumes_),
-    cell_gradient_(cells.cell_gradient_)
+    cell_volumes_(cells.volumes_)
+    // cell_gradient_(cells.cell_gradient_)
   {
     std::copy(faces.face_cell_conn_, faces.face_cell_conn_ + 2, face_cell_conn_);
     std::copy(faces.cell_flux_index_, faces.cell_flux_index_ + 2, cell_flux_index_);
     std::copy(cell_values, cell_values + 5, cell_values);
     std::copy(faces.face_normal_, faces.face_normal_ + 3, face_normal_);
+
+    for(int i = 0; i < 5; i++) {
+      for (int j = 0; j < 3; j++)
+        cell_gradient_[i][j] = cells.cell_gradient_[i][j];
+    }
   }
 
   void operator()( int i )const{
@@ -181,15 +191,23 @@ struct green_gauss_boundary_face{
 struct green_gauss_gradient_sum{
   typedef typename ViewTypes::gradient_storage_field_type gradient_storage_field_type;
   typedef typename ViewTypes::gradient_field_type gradient_field_type;
+
   gradient_storage_field_type face_gradient_;
   gradient_field_type gradient_;
   int number_faces_;
 
   green_gauss_gradient_sum(Cells cells, gradient_field_type gradient):
-    face_gradient_(cells.cell_gradient_),
-    gradient_(gradient),
+    // face_gradient_(cells.cell_gradient_),
+    // gradient_(gradient),
     number_faces_(cells.nfaces_)
-  {}
+  {
+    for(int i = 0; i < 5; i++) {
+      for (int j = 0; j < 3; j++) {
+        face_gradient_[i][j] = cells.cell_gradient_[i][j];
+        gradient_[i][j] = gradient[i][j];
+      }
+    }
+  }
 
   void operator()( int i )const{
     for(int icomp = 0; icomp < 5; ++icomp)

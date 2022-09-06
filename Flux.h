@@ -16,13 +16,13 @@
  * and puts the flux contribution in the appropriate place
  * using either Gather-Sum or Atomics for thread safety.
  */
-template<bool second_order, class InviscidFluxType, class ViscousFluxType>
+template<bool second_order, class InviscidFluxType, class ViscousFluxType >
 struct compute_face_flux {
-  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
-  typedef typename ViewTypes::c_rnd_face_cell_conn_type face_cell_conn_type;
+  typedef typename ViewTypes::solution_field_type solution_field_type;
+  typedef typename ViewTypes::face_cell_conn_type face_cell_conn_type;
   typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
-  typedef typename ViewTypes::c_vector_field_type vector_field_type;
-  typedef typename ViewTypes::c_rnd_gradient_field_type gradient_field_type;
+  typedef typename ViewTypes::vector_field_type vector_field_type;
+  typedef typename ViewTypes::gradient_field_type gradient_field_type;
 
   face_cell_conn_type face_cell_conn_;
   face_cell_conn_type cell_flux_index_;
@@ -33,22 +33,42 @@ struct compute_face_flux {
   cell_storage_field_type cell_flux_;
   vector_field_type face_coordinates_, face_normal_, face_tangent_,
       face_binormal_;
-  // Kokkos::View<const int*, Device> permute_vector_;
+  const int* permute_vector_;
   InviscidFluxType inviscid_flux_evaluator_;
   ViscousFluxType viscous_flux_evaluator_;
-
 
   compute_face_flux(Faces faces, solution_field_type cell_values,
       gradient_field_type cell_gradients, solution_field_type cell_limiters,
       Cells cells, InviscidFluxType inviscid_flux,
       ViscousFluxType viscous_flux) :
-      face_cell_conn_(faces.face_cell_conn_), cell_flux_index_(
-          faces.cell_flux_index_), cell_values_(cell_values), cell_gradients_(
-          cell_gradients), cell_limiters_(cell_limiters), cell_coordinates_(
-          cells.coordinates_), cell_flux_(cells.cell_flux_), face_coordinates_(
-          faces.coordinates_), face_normal_(faces.face_normal_), face_tangent_(
-          faces.face_tangent_), face_binormal_(faces.face_binormal_), inviscid_flux_evaluator_(
-          inviscid_flux), viscous_flux_evaluator_(viscous_flux) /*, permute_vector_(faces.permute_vector_) */ {
+      /*face_cell_conn_(faces.face_cell_conn_), cell_flux_index_(
+          faces.cell_flux_index_), cell_values_(cell_values),*/ 
+          // cell_gradients_(cell_gradients), 
+          // cell_limiters_(cell_limiters), 
+          // cell_coordinates_(cells.coordinates_), 
+          // cell_flux_(cells.cell_flux_), 
+          // face_coordinates_(faces.coordinates_), 
+          // face_normal_(faces.face_normal_), 
+          // face_tangent_(faces.face_tangent_), 
+          // face_binormal_(faces.face_binormal_), 
+          inviscid_flux_evaluator_(inviscid_flux), 
+          viscous_flux_evaluator_(viscous_flux) , 
+          permute_vector_(faces.permute_vector_) {
+    std::copy(faces.face_cell_conn_, faces.face_cell_conn_ + 2, face_cell_conn_);
+    std::copy(faces.cell_flux_index_, faces.cell_flux_index_ + 2, cell_flux_index_);
+    std::copy(cell_values, cell_values + 5, cell_values);
+    std::copy(cell_limiters, cell_limiters + 5, cell_limiters_);
+    std::copy(cells.coordinates_, cells.coordinates_ + 3, cell_coordinates_);
+    std::copy(cells.cell_flux_, cells.cell_flux_ + 5, cell_flux_);
+    std::copy(faces.coordinates_, faces.coordinates_ + 3, face_coordinates_);
+    std::copy(faces.face_normal_, faces.face_normal_ + 3, face_normal_);
+    std::copy(faces.face_tangent_, faces.face_tangent_ + 3, face_tangent_);
+    std::copy(faces.face_binormal_, faces.face_binormal_ + 3, face_binormal_);
+
+    for(int i = 0; i < 5; i++) {
+      for(int j = 0; j < 3; j++)
+        cell_gradients_[i][j] = cell_gradients[i][j];
+    }
   }
   
   void operator()(const int& ii) const {
@@ -164,8 +184,13 @@ struct apply_cell_flux {
   double vol_;
 
   apply_cell_flux(Cells cells, solution_field_type residuals, double dt) :
-      number_faces_(cells.nfaces_), volume_(cells.volumes_), flux_(
-          cells.cell_flux_), residuals_(residuals), dt_(dt) {
+      number_faces_(cells.nfaces_), 
+      volume_(cells.volumes_),
+      // flux_(cells.cell_flux_), 
+      // residuals_(residuals), 
+      dt_(dt) {
+    std::copy(cells.cell_flux_, cells.cell_flux_ + 5, flux_);
+    std::copy(residuals, residuals + 5, residuals_);
   }
 
   void operator()(int i) const {

@@ -13,7 +13,7 @@
  */
 template<class FluxType>
 struct compute_tangentBC_flux {
-  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
+  typedef typename ViewTypes::solution_field_type solution_field_type;
   typedef typename ViewTypes::c_rnd_face_cell_conn_type face_cell_conn_type;
   typedef typename ViewTypes::vector_field_type vector_field_type;
   typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
@@ -49,7 +49,7 @@ struct compute_tangentBC_flux {
       conservatives[icomp] = cell_values_[index][icomp];
     }
 
-    ComputePrimitives[conservatives][primitives_l];
+    ComputePrimitives(conservatives, primitives_l);
 
     //scale normal since it includes area.
     double area_norm = 0;

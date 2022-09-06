@@ -27,14 +27,14 @@ public:
   // Fix memory allocation on initialization
    Faces(int nfaces, int ncells) :
    nfaces_(nfaces),
-   ncells_(ncells),
-   coordinates_(nfaces),
+   ncells_(ncells)
+   /*coordinates_(nfaces),
    face_normal_(nfaces),
    face_tangent_(nfaces),
    face_binormal_(nfaces),
    face_cell_conn_(nfaces),
    cell_flux_index_(nfaces),
-   permute_vector_(nfaces)
+   permute_vector_(nfaces)*/
    {
    }
 

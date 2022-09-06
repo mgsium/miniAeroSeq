@@ -67,12 +67,15 @@ void initialize_sod3d(
   double flow_state_[5];
 
   initialize_constant(struct Cells cells, solution_field_type soln, solution_field_type solnp1, double * flow_state) :
-    cells_(cells),
-    soln_(soln),
-    solnp1_(solnp1)
+    cells_(cells)
+    // soln_(soln),
+    // solnp1_(solnp1)
   {
     for(int i=0; i<5; ++i)
       flow_state_[i]=flow_state[i];
+
+    std::copy(solnp1, solnp1 + 5, solnp1_);
+    std::copy(soln, soln + 5, soln_);
   }
   
   void operator()( int i )const{

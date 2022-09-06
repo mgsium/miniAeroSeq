@@ -19,7 +19,7 @@
 template<bool interior>
 struct min_max_face {
   typedef typename ViewTypes::c_rnd_scalar_field_type scalar_field_type;
-  typedef typename ViewTypes::c_rnd_solution_field_type solution_field_type;
+  typedef typename ViewTypes::solution_field_type solution_field_type;
   typedef typename ViewTypes::face_cell_conn_type face_cell_conn_type;
   typedef typename ViewTypes::c_rnd_vector_field_type vector_field_type;
   typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
@@ -30,14 +30,16 @@ struct min_max_face {
   solution_field_type cell_values_;
   vector_field_type face_normal_;
   cell_storage_field_type stencil_min_, stencil_max_;
+  const int * permute_vector_;
 
   min_max_face(Faces faces, solution_field_type cell_values, Cells cells,
-     cell_storage_field_type stencil_min, cell_storage_field_type stencil_max)
+     cell_storage_field_type stencil_min, cell_storage_field_type stencil_max) :
     // face_cell_conn_(faces.face_cell_conn_),
     // cell_flux_index_(faces.cell_flux_index_),
     // cell_values_(cell_values)
     // stencil_min_(stencil_min),
-    // stencil_max_(stencil_max)
+    // stencil_max_(stencil_max),
+    permute_vector_(faces.permute_vector_)
   {
     std::copy(faces.face_cell_conn_, faces.face_cell_conn_ + 2, face_cell_conn_);
     std::copy(faces.cell_flux_index_, faces.cell_flux_index_ + 2, cell_flux_index_);
@@ -47,7 +49,7 @@ struct min_max_face {
   }
 
   void operator()( const int& ii )const{
-    // const int i = permute_vector_[ii];
+    const int i = permute_vector_[ii];
 
     const int left_index = face_cell_conn_[i][0];
     const int right_index = face_cell_conn_[i][1];
@@ -253,7 +255,8 @@ struct gather_min_max{
  void initialize_limiter(
     const int nfaces_,
     ViewTypes::solution_field_type limiter_,
-    ViewTypes::cell_storage_field_type stored_limiter_
+    ViewTypes::cell_storage_field_type stored_limiter_,
+    int i
  ) {
     for (int icomp = 0; icomp < 5; ++icomp) {
       for(int iface = 0; iface<nfaces_; ++iface) {
@@ -304,6 +307,7 @@ struct limiter_face{
   vector_field_type face_coordinates_, cell_coordinates_;
   gradient_field_type cell_gradients_;
   cell_storage_field_type limiter_;
+  const int * permute_vector_;
 
   limiter_face(Faces faces, solution_field_type cell_values, Cells cells,
     gradient_field_type gradients,
@@ -316,7 +320,8 @@ struct limiter_face{
     face_coordinates_(faces.coordinates_),
     cell_coordinates_(cells.coordinates_),
     cell_gradients_(gradients),
-    limiter_(limiter)
+    limiter_(limiter),
+    permute_vector_(faces.permute_vector_)
   {}
 
   void operator()( const int& ii )const{
@@ -447,17 +452,31 @@ class StencilLimiter{
       internal_faces_(internal_faces),
       bc_faces_(bc_faces),
       cells_(cells),
-      mesh_data_(mesh_data),
-      ghosted_vars("ghosted_vars", total_recv_count*5),
+      mesh_data_(mesh_data)
+      // ghosted_vars("ghosted_vars", total_recv_count*5),
       // ghosted_vars_host(ghosted_vars),
-      shared_vars("shared_vars", total_send_count*5),
-      shared_vars_host(shared_vars),
-      stored_min_("stored_min", cells->ncells_*5, cells->nfaces_),
-      stored_max_("stored_max", cells->ncells_*5, cells->nfaces_),
-      stored_limiter_("stored_limiter", cells->ncells_*5, cells->nfaces_),
-      stencil_min_("stencil_min", cells->ncells_*5),
-      stencil_max_("stencil_max", cells->ncells_*5)
-        {}
+      // shared_vars("shared_vars", total_send_count*5),
+      // shared_vars_host(shared_vars),
+      // stored_min_("stored_min", cells->ncells_*5, cells->nfaces_),
+      // stored_max_("stored_max", cells->ncells_*5, cells->nfaces_),
+      // stored_limiter_("stored_limiter", cells->ncells_*5, cells->nfaces_)
+      // stencil_min_("stencil_min", cells->ncells_*5),
+      // stencil_max_("stencil_max", cells->ncells_*5)
+        {
+          for(int i = 0; i < 5; i++) {
+            stencil_min_[i] = (double *) malloc(sizeof(double) * cells->ncells_ * 5);
+            stencil_max_[i] = (double *) malloc(sizeof(double) * cells->ncells_ * 5);
+
+            stored_min_[i] = (double **) malloc(sizeof(double) * cells->ncells_ * 5);
+            stored_max_[i] = (double **) malloc(sizeof(double) * cells->ncells_ * 5);
+            stored_limiter_[i] = (double **) malloc(sizeof(double) * cells->ncells_ * 5);
+            for (int j = 0; j < 5; j++) {
+              stored_min_[i][j] = (double *) malloc(sizeof(double) * cells->nfaces_);
+              stored_max_[i][j] = (double *) malloc(sizeof(double) * cells->nfaces_);
+              stored_limiter_[i][j] = (double *) malloc(sizeof(double) * cells->nfaces_);
+            }
+          }
+        }
 
   void compute_min_max(solution_field_type sol_np1_vec) {
 
@@ -567,9 +586,9 @@ class StencilLimiter{
     std::vector<Faces *> * bc_faces_;
     Cells * cells_;
     struct MeshData * mesh_data_;
-    scalar_field_type ghosted_vars;
+    // scalar_field_type ghosted_vars;
     // typename scalar_field_type::HostMirror ghosted_vars_host;
-    scalar_field_type shared_vars;
+    // scalar_field_type shared_vars;
     // typename scalar_field_type::HostMirror shared_vars_host;
     cell_storage_field_type stored_min_;
     cell_storage_field_type stored_max_;
