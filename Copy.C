@@ -1,50 +1,30 @@
-#ifndef INCLUDE_FACES_H_
-#define INCLUDE_FACES_H_
+#include "Copy.h"
 
-#include "Face.h"
-#include "ViewTypes.h"
-
-/*Faces
- * struct containing the face data used for simulation.
- * Includes things such as coordinates, face_normal, and face to element
- * connectivity.
+/*copy_cell_data
+ * functor to copy the Cell information from the setup datastructure to
+ * Kokkos datastructure.
  */
-struct Faces{
-   typedef int * id_type;
-   typedef typename ViewTypes::vector_field_type vector_field_type;
-   typedef typename ViewTypes::face_cell_conn_type face_cell_conn_type;
+void copy_cell_data(Cells device_cells, std::vector<Cell> & mesh_cells){
+  
+  typedef double * scalar_field_type;
+  typedef typename ViewTypes::vector_field_type vector_field_type;
 
-public:
-   int nfaces_;
-   int ncells_;
-   vector_field_type coordinates_, face_normal_, face_tangent_, face_binormal_;
-   face_cell_conn_type face_cell_conn_;
-   face_cell_conn_type cell_flux_index_;
-   id_type permute_vector_;
+  int ncells = mesh_cells.size();
 
-   Faces(){}
-
-  // Fix memory allocation on initialization
-   Faces(int nfaces, int ncells) :
-   nfaces_(nfaces),
-   ncells_(ncells)
-   /*coordinates_(nfaces),
-   face_normal_(nfaces),
-   face_tangent_(nfaces),
-   face_binormal_(nfaces),
-   face_cell_conn_(nfaces),
-   cell_flux_index_(nfaces),
-   permute_vector_(nfaces)*/
-   {
-   }
-
-};
+    for(int i = 0; i < mesh_cells.size(); ++i){
+      device_cells.volumes_[i] = mesh_cells[i].GetVolume();
+      for(int j=0; j<3; ++j){
+        double * tmp_coord = mesh_cells[i].GetCoords();
+        device_cells.coordinates_[i][j] = tmp_coord[j];
+      }
+    }
+}
 
 /* copy_faces
  * functor to copy from host setup datastructure
  * to Kokkos datastructures.
  */
-/*void copy_faces(Faces device_faces, std::vector<Face> & mesh_faces){
+void copy_faces(Faces device_faces, std::vector<Face> & mesh_faces){
 
   //Need host mirror
   typedef int * id_type;
@@ -86,7 +66,5 @@ public:
     Kokkos::BinSort<view_type, CompType, Device, int> bin_sort(face_cell_left,CompType(face_cell_left.extent(0)/2,minmax.min_val,minmax.max_val),true);
     bin_sort.create_permute_vector();
     Kokkos::deep_copy(device_faces.permute_vector_, bin_sort.sort_order);
-  }
-}*/
-
-#endif
+  }*/
+}

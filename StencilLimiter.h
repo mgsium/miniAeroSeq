@@ -115,7 +115,7 @@ struct min_max_face {
         const double face_min = interior ? STENCIL_MIN(primitives_r[icomp], primitives_l[icomp]) : primitives_l[icomp];
         const double face_max = interior ? STENCIL_MAX(primitives_r[icomp], primitives_l[icomp]) : primitives_l[icomp];
 
-#ifdef ATOMICS_FLUX
+/*#ifdef ATOMICS_FLUX
     //Need compare and exhange here instead of atomic add
 
     double * left_cell_min = &stencil_min_(left_index,0,icomp);
@@ -153,7 +153,7 @@ struct min_max_face {
         success = new_value == new_right_max;
       } while(!success);
     }
-#endif
+#endif*/
 
 #ifdef CELL_FLUX
     stencil_min_(left_index, cell_ind_0, icomp) = face_min;
@@ -235,14 +235,14 @@ struct gather_min_max{
   void operator()( int i )const{
     for (int icomp = 0; icomp < 5; ++icomp) {
 #ifdef ATOMICS_FLUX
-      stencil_min_(i,icomp) = stored_min_(i,0,icomp);
-      stencil_max_(i,icomp) = stored_max_(i,0,icomp);
+      stencil_min_[i][icomp] = stored_min_[i][0][icomp];
+      stencil_max_[i][icomp] = stored_max_[i][0][icomp];
 #endif
 
 #ifdef CELL_FLUX
       for(int iface = 0; iface<nfaces_; ++iface) {
-        stencil_min_(i,icomp) = MathTools::min(stencil_min_(i,icomp),stored_min_(i,iface,icomp));
-        stencil_max_(i,icomp) = MathTools::max(stencil_max_(i,icomp),stored_max_(i,iface,icomp));
+        stencil_min_[i][icomp] = MathTools::min(stencil_min_[i][icomp],stored_min_[i][iface][icomp]);
+        stencil_max_[i][icomp] = MathTools::max(stencil_max_[i][icomp],stored_max_[i][iface][icomp]);
       }
 #endif
     }
@@ -269,23 +269,37 @@ struct gather_min_max{
  /* gather_limiter
  * functor that gathers and takes the minimum limiter value of the connected faces.
  */
- void gather_limiter(
-    const int nfaces_,
-    ViewTypes::solution_field_type limiter_,
-    ViewTypes::cell_storage_field_type stored_limiter_
- ) {
+struct gather_limiter{
+  typedef typename ViewTypes::solution_field_type solution_field_type;
+  typedef typename ViewTypes::cell_storage_field_type cell_storage_field_type;
+
+  const int nfaces_;
+  cell_storage_field_type stored_limiter_;
+  solution_field_type limiter_;
+
+  gather_limiter(int nfaces, cell_storage_field_type stored_limiter, solution_field_type limiter):
+        nfaces_(nfaces)
+        // stored_limiter_(stored_limiter),
+        // limiter_(limiter)
+        {
+    std::copy(stored_limiter, stored_limiter + 5, stored_limiter_);
+    std::copy(limiter, limiter + 5, limiter_);
+  }
+
+  void operator()( int i )const{
     for (int icomp = 0; icomp < 5; ++icomp) {
 #ifdef ATOMICS_FLUX
-      limiter_(i,icomp) = stored_limiter_(i,0,icomp);
+      limiter_[i][icomp] = stored_limiter_[i][0][icomp];
 #endif
 
 #ifdef CELL_FLUX
       for(int iface = 0; iface<nfaces_; ++iface) {
-        limiter_(i,icomp) = MathTools::min(limiter_(i,icomp),stored_limiter_(i,iface,icomp));
+        limiter_[i][icomp] = MathTools::min(limiter_[i][icomp],stored_limiter_[i][iface][icomp]);
       }
 #endif
     }
   }
+};
 
 /* limiter_face
  * functor that computes the limiter value for each face and scatter contribution
@@ -397,10 +411,10 @@ struct limiter_face{
   }
 
 //Then write to memory
-#ifdef ATOMICS_FLUX
+/*#ifdef ATOMICS_FLUX
   for (int icomp = 0; icomp < 5; ++icomp)
   {
-    double * left_cell_limiter = &limiter_(left_index,0,icomp);
+    double * left_cell_limiter = &limiter_[left_index][0][icomp];
     bool success=false;
     do{
       double old_left_limiter =  *left_cell_limiter;
@@ -420,7 +434,7 @@ struct limiter_face{
       } while(!success);
     }
   }
-#endif
+#endif*/
 
 #ifdef CELL_FLUX
     for (int icomp = 0; icomp < 5; ++icomp)

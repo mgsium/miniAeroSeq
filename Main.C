@@ -1,7 +1,15 @@
 #include "Main.h"
 #include "TimeSolverExplicitRK4.h"
-#include "Options.h"
+#include "Parallel3DMesh.h"
 #include "MeshData.h"
+#include "Options.h"
+
+#include <unistd.h>
+#include <cstddef>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <ctime>
 
 int main(int argc, char *argv[])
 {
@@ -23,9 +31,9 @@ void run(const Options & simulation_options)
     int problem_type = simulation_options.problem_type;
     
     // Fill mesh
-    // Parallel3DMesh mesh(nx, ny, nz, lx, ly, lz, problem_type, angle);
+    Parallel3DMesh mesh(nx, ny, nz, lx, ly, lz, problem_type, angle);
     struct MeshData mesh_data;
-    // mesh.fillMeshData<Kokkos::DefaultExecutionSpace>(mesh_data);
+    mesh.fillMeshData(mesh_data);
     TimeSolverExplicitRK4 * time_solver = new TimeSolverExplicitRK4(mesh_data, simulation_options);
     time_solver->Solve();
     delete time_solver;

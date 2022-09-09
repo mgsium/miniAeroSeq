@@ -103,7 +103,7 @@ struct zero_cell_flux{
  * functor to copy the Cell information from the setup datastructure to
  * Kokkos datastructure.
  */
-void copy_cell_data(Cells device_cells, std::vector<Cell> & mesh_cells){
+/*void copy_cell_data(Cells device_cells, std::vector<Cell> & mesh_cells){
   
   typedef double * scalar_field_type;
   typedef typename ViewTypes::vector_field_type vector_field_type;
@@ -117,6 +117,6 @@ void copy_cell_data(Cells device_cells, std::vector<Cell> & mesh_cells){
         device_cells.coordinates_[i][j] = tmp_coord[j];
       }
     }
-}
+}*/
 
 #endif

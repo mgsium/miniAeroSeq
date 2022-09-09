@@ -4,10 +4,9 @@
 #include <vector>
 #include <utility>
 #include <string>
-/*struct Cells;
-struct Faces;*/
-#include "Cells.h"
-#include "Faces.h"
+#include <memory>
+struct Cells;
+struct Faces;
 
 /*MeshData
  * Struct that contains needed mesh data
@@ -25,8 +24,8 @@ struct MeshData{
   //Device data
   typedef int * id_map_type;
   id_map_type send_local_ids, recv_local_ids;
-  Cells mesh_cells;
-  Faces internal_faces;
+  std::unique_ptr<Cells> mesh_cells;
+  std::unique_ptr<Faces> internal_faces;
   std::vector<std::pair<std::string, Faces > > boundary_faces;
 };
 

@@ -19,9 +19,10 @@ CXXFLAGS += -Isrc
 build: ${EXE}
 
 $(EXE): $(OBJ) $(KOKKOS_LINK_DEPENDS)
-	$(LINK) $(KOKKOS_LDFLAGS) $(LINKFLAGS) $(EXTRA_PATH) $(OBJ) $(KOKKOS_LIBS) $(LIB) $(OP2_LIB) $(OP2_INC) -I./ ./*.c -o $(EXE)
+	$(LINK) $(KOKKOS_LDFLAGS) $(LINKFLAGS) $(EXTRA_PATH) $(OBJ) $(KOKKOS_LIBS) $(LIB) $(OP2_LIB) $(OP2_INC) -o $(EXE)
 
-clean: rm -f *.o *.cuda *.host
+clean: 
+	rm -f *.o *.cuda *.host
 
 test: $(EXE)
 	cd tests; \
@@ -30,4 +31,4 @@ test: $(EXE)
 # Compilation rules
 
 %.o:%.C $(KOKKOS_CPP_DEPENDS)
-	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) $(EXTRA_INC) $(OP2_LIB) $(OP2_INC) -c $<
+	$(CXX) -I./ -std=c++14 -mavx $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) $(EXTRA_INC) $(OP2_LIB) $(OP2_INC) -c $<

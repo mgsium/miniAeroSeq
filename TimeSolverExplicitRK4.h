@@ -157,7 +157,7 @@ void TimeSolverExplicitRK4::Solve()
 
     //Faces - Interior and BC
     //Internal Faces
-    Faces internal_faces = mesh_data_.internal_faces;
+    Faces internal_faces = *mesh_data_.internal_faces;
     const int ninternal_faces= internal_faces.nfaces_;
 
     //Boundary Faces
@@ -180,7 +180,7 @@ void TimeSolverExplicitRK4::Solve()
     }
 
     //Cells
-    Cells cells = mesh_data_.mesh_cells;
+    Cells cells = *mesh_data_.mesh_cells;
     const int nowned_cells = mesh_data_.num_owned_cells;
     const int num_ghosts = mesh_data_.num_ghosts;
     const int ncells = cells.ncells_;
@@ -241,10 +241,13 @@ void TimeSolverExplicitRK4::Solve()
     }
    else
     {
-      initialize_constant(cells, sol_n_vec, sol_temp_vec, &inflow_state[0]);
+      initialize_constant init_fields(cells, sol_n_vec, sol_temp_vec, &inflow_state[0]);
+      for(int i = 0; i < nowned_cells; i++) init_fields(i);
       // Kokkos::parallel_for(nowned_cells, init_fields);
     }
     // Initialize the value for np1 solution which will be updated each RK stage and then copied to n solution at end of timestep.
+    for (int i = 0; i < nowned_cells; i++)
+      copy(sol_n_vec, sol_np1_vec, i);
     // copy<Device> copy_solution( sol_n_vec, sol_np1_vec);
     // Kokkos::parallel_for(nowned_cells, copy_solution);
     // Kokkos::fence();
@@ -255,10 +258,10 @@ void TimeSolverExplicitRK4::Solve()
       ts_data_.time += ts_data_.dt;
 
       // Print time step info
-      /*if(ts_data_.time_it % options_.output_frequency == 0  && my_id_==0){
+      if(ts_data_.time_it % options_.output_frequency == 0  && my_id_==0){
         fprintf(stdout, "\nTime Step #%i:  Time = %16.9e; dt = %16.9e\n", ts_data_.time_it, ts_data_.time,
              ts_data_.dt);
-      }*/
+      }
 
       // R-K stages loop ****************************************************
       for (unsigned irk = 0; irk < stages_; ++irk)
@@ -289,10 +292,12 @@ void TimeSolverExplicitRK4::Solve()
         newtonian_viscous_flux viscous_flux_evaluator;
         if(options_.second_order_space){
           compute_face_flux<true, roe_flux, newtonian_viscous_flux > fluxop(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
+          for(int i = 0; i < ninternal_faces; i++) fluxop(i);
           // Kokkos::parallel_for(ninternal_faces,fluxop);
         }
         else{
           compute_face_flux<false, roe_flux, newtonian_viscous_flux > fluxop(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
+          for(int i = 0; i < ninternal_faces; i++) fluxop(i);
           // Kokkos::parallel_for(ninternal_faces,fluxop);
         }
         // Kokkos::fence();
@@ -301,10 +306,12 @@ void TimeSolverExplicitRK4::Solve()
         no_viscous_flux viscous_flux_evaluator;
         if(options_.second_order_space){
           compute_face_flux<true, roe_flux, no_viscous_flux> fluxop(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
+          for(int i = 0; i < ninternal_faces; i++) fluxop(i);
           // Kokkos::parallel_for(ninternal_faces,fluxop);
         }
         else{
           compute_face_flux<false, roe_flux, no_viscous_flux> fluxop(internal_faces, sol_temp_vec, gradients, limiters, cells, inviscid_flux_evaluator, viscous_flux_evaluator);
+          for(int i = 0; i < ninternal_faces; i++) fluxop(i);
           // Kokkos::parallel_for(ninternal_faces,fluxop);
         }
         // Kokkos::fence();

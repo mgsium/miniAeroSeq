@@ -80,17 +80,17 @@ struct green_gauss_face{
         for(int icomp = 0; icomp < 5; ++icomp) {
             const double gradient = 0.5*(primitives_l[icomp]+primitives_r[icomp])*face_norm;
 
-#ifdef ATOMICS_FLUX
+/*#ifdef ATOMICS_FLUX
             double * left_cell = &cell_gradient_(left_index,0,icomp,idir);
             Kokkos::atomic_add(left_cell, gradient/cell_vol_left);
 
             double * right_cell = &cell_gradient_(right_index,0,icomp,idir);
             Kokkos::atomic_add(right_cell, -gradient/cell_vol_right);
-#endif
+#endif*/
 
 #ifdef CELL_FLUX
-            cell_gradient_(left_index,cell_ind_0,icomp, idir) = gradient/cell_vol_left;
-            cell_gradient_(right_index,cell_ind_1,icomp, idir) = -gradient/cell_vol_right;
+            cell_gradient_[left_index][cell_ind_0][icomp][idir] = gradient/cell_vol_left;
+            cell_gradient_[right_index][cell_ind_1][icomp][idir] = -gradient/cell_vol_right;
 #endif
         }
     }
@@ -161,7 +161,7 @@ struct green_gauss_boundary_face{
     }
   }
 
-#ifdef ATOMICS_FLUX
+/*#ifdef ATOMICS_FLUX
   for (int icomp = 0; icomp < 5; ++icomp)
   {
     for(int idir = 0; idir < 3; ++idir)
@@ -170,14 +170,14 @@ struct green_gauss_boundary_face{
       Kokkos::atomic_fetch_add(cell, gradient[icomp][idir]/cell_volumes_(index));
     }
   }
-#endif
+#endif*/
 
 #ifdef CELL_FLUX
     for (int icomp = 0; icomp < 5; ++icomp)
     {
     for(int idir = 0; idir < 3; ++idir)
     {
-        cell_gradient_(index,cell_flux_index_(i,0),icomp, idir) = gradient[icomp][idir]/cell_volumes_(index);
+        cell_gradient_[index][cell_flux_index_[i][0]][icomp][idir] = gradient[icomp][idir]/cell_volumes_[index];
     }
     }
 #endif
@@ -264,6 +264,7 @@ class GreenGauss {
       //Internal Faces
       const int ninternal_faces = internal_faces_->nfaces_;
       green_gauss_face face_gradient(*internal_faces_, sol_np1_vec, *cells_);
+      for(int i = 0; i < ninternal_faces; i++) face_gradient(i);
       // Kokkos::parallel_for(ninternal_faces, face_gradient);
 
       //Boundary Faces
@@ -274,11 +275,14 @@ class GreenGauss {
         Faces * faces = *bcf_iter;
         const int nboundary_faces = faces->nfaces_;
         green_gauss_boundary_face bc_gradient(*faces, sol_np1_vec, *cells_);
+        for(int i = 0; i < nboundary_faces; i++) bc_gradient(i);
         // Kokkos::parallel_for(nboundary_faces, bc_gradient);
       }
 
       //Sum of all contributions.
       green_gauss_gradient_sum gradient_sum(*cells_, gradients);
+      for(int i = 0; i < mesh_data_->num_owned_cells; i++)
+        gradient_sum(i);
       // Kokkos::parallel_for(mesh_data_->num_owned_cells, gradient_sum);
       // Kokkos::fence();
     }

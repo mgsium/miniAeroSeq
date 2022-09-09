@@ -143,21 +143,21 @@ struct compute_face_flux {
       }
     }
 
-#ifdef ATOMICS_FLUX
+/*#ifdef ATOMICS_FLUX
     for (int icomp = 0; icomp < 5; ++icomp)
     {
-      double * left_cell = &cell_flux_(left_index,0,icomp);
+      double * left_cell = &cell_flux_[left_index][0][icomp];
       Kokkos::atomic_add(left_cell, -flux[icomp]);
-      double * right_cell = &cell_flux_(right_index,0,icomp);
+      double * right_cell = &cell_flux_[right_index][0][icomp];
       Kokkos::atomic_add(right_cell, flux[icomp]);
     }
-#endif
+#endif*/
 
 #ifdef CELL_FLUX
     for (int icomp = 0; icomp < 5; ++icomp)
     {
-      cell_flux_(left_index,cell_flux_index_(i,0),icomp) = -flux[icomp];
-      cell_flux_(right_index,cell_flux_index_(i,1),icomp) = flux[icomp];
+      cell_flux_[left_index][cell_flux_index_[i][0]][icomp] = -flux[icomp];
+      cell_flux_[right_index][cell_flux_index_[i][1]][icomp] = flux[icomp];
     }
 #endif
 
