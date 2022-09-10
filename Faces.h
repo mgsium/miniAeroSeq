@@ -35,8 +35,19 @@ public:
    face_cell_conn_(nfaces),
    cell_flux_index_(nfaces),
    permute_vector_(nfaces)*/
-   {
-   }
+  {
+    for(int i=0; i < 3; i++) {
+      coordinates_[i] = (double *) malloc(sizeof(double) * nfaces);
+      face_normal_[i] = (double *) malloc(sizeof(double) * nfaces);
+      face_tangent_[i] = (double *) malloc(sizeof(double) * nfaces);
+      face_binormal_[i] = (double *) malloc(sizeof(double) * nfaces);
+    }
+    for(int i=0; i < 2; i++) {
+      face_cell_conn_[i] = (int *) malloc(sizeof(int) * nfaces);
+      cell_flux_index_[i] = (int *) malloc(sizeof(int) * nfaces);
+    }
+    permute_vector_ = (int *) malloc(sizeof(int) * nfaces);
+  }
 
 };
 

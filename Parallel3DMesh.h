@@ -150,9 +150,13 @@ public:
     int num_elems = getNumberElements();
     int num_ghosted_elems = getNumberGhostedElements();
 
+    printf("\nDone here (1)\n");
+
     myfile << "Total Number of Nodes: " << num_nodes << std::endl;
     myfile << "Total Number of Elements: " << num_elems << std::endl;
     myfile << "Number of Ghosted Elements: " << num_ghosted_elems << std::endl;
+
+    printf("Done here (2)\n");
 
     std::vector<int> element_node_conn, element_global_id;
 
@@ -162,10 +166,14 @@ public:
     getElementNodeConnectivities(element_node_conn, element_global_id);
     getGhostedElementNodeConnectivities(element_node_conn, element_global_id);
 
+    printf("Done here (3)\n");
+
     int node_coord_size = num_nodes*3;
     std::vector<double> node_coordinates;
     node_coordinates.reserve(node_coord_size);
     getNodeCoordinates(node_coordinates);
+
+    printf("Done here (4)\n");
 
     std::vector<Face> mesh_faces;
     std::vector<Cell> mesh_cells(num_elems);
@@ -241,6 +249,7 @@ public:
       fprintf(stdout,"\n ... Extract BC face and delete ghost time: %8.2f seconds ...\n", faceElapsedTime);
     }
 
+    printf("Done here (6)\n");
 
     //Parallel communication setup
     #if WITH_MPI
@@ -302,11 +311,15 @@ public:
         std::cout << "End setup communication." << std::endl;
     #endif
 
+    printf("Done here (7)\n");
+
     size_t current_mem_usage = 0, high_water_mem_usage = 0;
     get_memory_usage(current_mem_usage, high_water_mem_usage); 
     current_mem_usage = current_mem_usage/(1024.0*1024.0);
     high_water_mem_usage = high_water_mem_usage/(1024.0*1024.0);
     fprintf(stdout,"\n CPU Memory Usage (Current, High Water) - after mesh setup: %lu MB, %lu MB", current_mem_usage, high_water_mem_usage);
+
+    printf("\nDone here (8)\n");
 
     //Fill Kokkos Arrays on HostMirror and copy to Device.
 
@@ -330,9 +343,12 @@ public:
     Faces front_boundary_faces(nfront_faces, 1);
     Faces back_boundary_faces(nback_faces, 1);
 
+    printf("Done here (9)\n");
 
     //Shuffle internal faces
     std::random_shuffle(mesh_faces.begin(), mesh_faces.end());
+
+    printf("Done here (9.5)\n");
 
     //Fill Faces on Device (through HostMirror)
     copy_faces(internal_faces, mesh_faces);
@@ -343,15 +359,20 @@ public:
     copy_faces(front_boundary_faces, front_faces);
     copy_faces(back_boundary_faces, back_faces);
 
+    printf("Done here (10)\n");
 
     //Cells
     const int faces_per_element = 6;
     Cells device_cells(num_elems, faces_per_element);//ncells, faces/element. - Need centroid?
     copy_cell_data(device_cells, mesh_cells);
 
+    printf("Done here (11)\n");
+
     //Fill Cells on device.
-    *mesh_data.mesh_cells = device_cells;
-    *mesh_data.internal_faces = internal_faces;
+    mesh_data.mesh_cells = std::make_unique<Cells>(device_cells);
+    mesh_data.internal_faces = std::make_unique<Faces>(internal_faces);
+    printf("Done here (12.1)\n");
+
     if(problem_type_ == 1)
       mesh_data.boundary_faces.push_back(std::pair<std::string, Faces >("NoSlip", bottom_boundary_faces));
     else
@@ -360,14 +381,17 @@ public:
       mesh_data.boundary_faces.push_back(std::pair<std::string, Faces >("Extrapolate", top_boundary_faces));
     else
       mesh_data.boundary_faces.push_back(std::pair<std::string, Faces >("Tangent", top_boundary_faces));
+      
     mesh_data.boundary_faces.push_back(std::pair<std::string, Faces >("Tangent", front_boundary_faces));
     mesh_data.boundary_faces.push_back(std::pair<std::string, Faces >("Tangent", back_boundary_faces));
     mesh_data.boundary_faces.push_back(std::pair<std::string, Faces >("Extrapolate", right_boundary_faces));
+    
     if(problem_type_ == 0)
       mesh_data.boundary_faces.push_back(std::pair<std::string, Faces >("Extrapolate", left_boundary_faces));
     else
       mesh_data.boundary_faces.push_back(std::pair<std::string, Faces >("Inflow", left_boundary_faces));
 
+    printf("Done here (13)\n");
 
     /*#ifdef WITH_MPI
       //Communication data on device
@@ -417,7 +441,7 @@ public:
         device_cells.volumes_,mesh_data.recv_local_ids,ghost_volumes));
 
     #endif*/
-
+    printf("Done here (14)\n");
 
     }
 

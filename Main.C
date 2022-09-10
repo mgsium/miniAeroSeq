@@ -33,8 +33,16 @@ void run(const Options & simulation_options)
     // Fill mesh
     Parallel3DMesh mesh(nx, ny, nz, lx, ly, lz, problem_type, angle);
     struct MeshData mesh_data;
+    printf("Created Mesh");
+
     mesh.fillMeshData(mesh_data);
+    printf("Filled Mesh\n");
+
     TimeSolverExplicitRK4 * time_solver = new TimeSolverExplicitRK4(mesh_data, simulation_options);
+    printf("Initialized\n");
+
     time_solver->Solve();
+    printf("Solved\n");
+
     delete time_solver;
 }

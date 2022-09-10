@@ -71,16 +71,24 @@ void initialize_sod3d(
     // soln_(soln),
     // solnp1_(solnp1)
   {
-    for(int i=0; i<5; ++i)
+    for(int i=0; i<5; ++i) {
       flow_state_[i]=flow_state[i];
+      soln_[i-1] = (double *) malloc(sizeof(double) * 1024);
+      solnp1_[i-1] = solnp1[i-1];
+      soln_[i-1] = soln[i-1];
+    }
 
-    std::copy(solnp1, solnp1 + 5, solnp1_);
-    std::copy(soln, soln + 5, soln_);
+    // std::copy(solnp1, solnp1 + 5, solnp1_);
+    // std::copy(soln, soln + 5, soln_);
   }
   
   void operator()( int i )const{
-    for(int j=0; j<5; j++)
-      soln_[i][j]=flow_state_[j];
+    for(int j=0; j<5; j++) {
+      // soln_[j][i]=flow_state_[j];
+      printf("%p ", soln_[j]);
+    }
+
+    printf("Here\n");
 
     for(int icomp=0; icomp<5; icomp++){
       solnp1_[i][icomp]=soln_[i][icomp];

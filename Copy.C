@@ -26,29 +26,42 @@ void copy_cell_data(Cells device_cells, std::vector<Cell> & mesh_cells){
  */
 void copy_faces(Faces device_faces, std::vector<Face> & mesh_faces){
 
+  // printf("\nCopy Faces (1)\n");
+
   //Need host mirror
   typedef int * id_type;
   typedef typename ViewTypes::vector_field_type vector_field_type;
   typedef typename ViewTypes::face_cell_conn_type face_cell_conn_type;
 
+  // printf("Copy Faces (2)\n");
+
   int nfaces = mesh_faces.size();
 
-    double a_vec[3], t_vec[3], b_vec[3];
-    for(int i = 0; i < mesh_faces.size(); ++i){
-        device_faces.face_cell_conn_[i][0]  = mesh_faces[i].GetElem1();
-        device_faces.face_cell_conn_[i][1]  = mesh_faces[i].GetElem2();
-        device_faces.cell_flux_index_[i][0] = mesh_faces[i].GetElem1_FluxIndex();
-        device_faces.cell_flux_index_[i][1] = mesh_faces[i].GetElem2_FluxIndex();
+  // printf("Copy Faces (3)\n");
+  // printf("%d\n", nfaces);
 
-        const double * coords = mesh_faces[i].GetCoords();
-        mesh_faces[i].GetAreaVecAndTangentVec(a_vec, t_vec, b_vec);
-        for(int j = 0; j < 3; ++j){
-            device_faces.coordinates_[i][j]   = coords[j];
-            device_faces.face_normal_[i][j]   = a_vec[j];
-            device_faces.face_tangent_[i][j]  = t_vec[j];
-            device_faces.face_binormal_[i][j] = b_vec[j];
-        }
-    }
+  double a_vec[3], t_vec[3], b_vec[3];
+  for(int i = 0; i < mesh_faces.size(); ++i){
+      // printf("(4.1) ");
+      device_faces.face_cell_conn_[0][i]  = mesh_faces[i].GetElem1();
+      device_faces.face_cell_conn_[1][i]  = mesh_faces[i].GetElem2();
+      device_faces.cell_flux_index_[0][i] = mesh_faces[i].GetElem1_FluxIndex();
+      device_faces.cell_flux_index_[1][i] = mesh_faces[i].GetElem2_FluxIndex();
+
+      // printf("(4.2) ");
+
+      const double * coords = mesh_faces[i].GetCoords();
+      mesh_faces[i].GetAreaVecAndTangentVec(a_vec, t_vec, b_vec);
+      for(int j = 0; j < 3; ++j){
+          device_faces.coordinates_[j][i]   = coords[j];
+          device_faces.face_normal_[j][i]   = a_vec[j];
+          device_faces.face_tangent_[j][i]  = t_vec[j];
+          device_faces.face_binormal_[j][i] = b_vec[j];
+      }
+      // printf("(4.3) \n");
+  }
+
+  // printf("Copy Faces (5)\n");
 
   /*if(device_faces.face_cell_conn_.extent(0) > 0) {
     typedef Kokkos::View<int *, Kokkos::LayoutStride, Device> view_type;

@@ -155,6 +155,8 @@ void TimeSolverExplicitRK4::Solve()
     inflow_state[3]=0.0;
     inflow_state[4]=343750.0;
 
+    printf("Solve (1)\n");
+
     //Faces - Interior and BC
     //Internal Faces
     Faces internal_faces = *mesh_data_.internal_faces;
@@ -179,11 +181,15 @@ void TimeSolverExplicitRK4::Solve()
             noslip_faces.push_back(bc_iter->second);
     }
 
+    printf("Solve (2)\n");
+
     //Cells
     Cells cells = *mesh_data_.mesh_cells;
     const int nowned_cells = mesh_data_.num_owned_cells;
     const int num_ghosts = mesh_data_.num_ghosts;
     const int ncells = cells.ncells_;
+
+    printf("Solve (3)\n");
 
     //Solution Variables
     solution_field_type res_vec, sol_n_vec, sol_np1_vec, sol_temp_vec;
@@ -207,6 +213,8 @@ void TimeSolverExplicitRK4::Solve()
         // limiters = solution_field_type("limiters", ncells);
     }
 
+    printf("Solve (4)\n");
+
     solution_field_type solution_vec;
     std::copy(sol_n_vec, sol_n_vec + 5, solution_vec);
     solution_field_type residuals_host;
@@ -217,6 +225,8 @@ void TimeSolverExplicitRK4::Solve()
     //setup ghosting information
     int num_procs_, my_id_;
     int total_send_count=0, total_recv_count=0;
+
+    printf("Solve (5)\n");
 
     // Gradients
     GreenGauss green_gauss_gradient;
@@ -233,18 +243,29 @@ void TimeSolverExplicitRK4::Solve()
       stencil_limiter = StencilLimiter(&internal_faces, &bc_faces, &cells, &mesh_data_, total_send_count, total_recv_count);
    }
 
+   printf("Solve (6)\n");
+
    if(options_.problem_type == 0)
    {
+      printf("Choose A\n");
       for (int i = 0; i < nowned_cells; i++)
         initialize_sod3d(cells, sol_n_vec, sol_temp_vec, midx, i);
       // Kokkos::parallel_for(nowned_cells, init_fields);
     }
    else
     {
+      printf("Choose B\n");
       initialize_constant init_fields(cells, sol_n_vec, sol_temp_vec, &inflow_state[0]);
-      for(int i = 0; i < nowned_cells; i++) init_fields(i);
+      printf("I mean seriously\n");
+      for(int i = 0; i < nowned_cells; i++) {
+        printf("%d\n",i);
+        init_fields(i);
+      }
       // Kokkos::parallel_for(nowned_cells, init_fields);
     }
+
+    printf("Solve (7)\n");
+
     // Initialize the value for np1 solution which will be updated each RK stage and then copied to n solution at end of timestep.
     for (int i = 0; i < nowned_cells; i++)
       copy(sol_n_vec, sol_np1_vec, i);
