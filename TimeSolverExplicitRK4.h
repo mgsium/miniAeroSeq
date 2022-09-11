@@ -74,7 +74,7 @@ void update(
 ) {
     for(int icomp=0; icomp<5; icomp++)
     {
-      solnp1[i][icomp] = soln[i][icomp] + alpha * res[i][icomp];
+      solnp1[icomp][i] = soln[icomp][i] + alpha * res[icomp][i];
     }
 }
 
@@ -88,7 +88,7 @@ void copy (
 ) {
   for(int icomp=0; icomp<5; icomp++)
   {
-    soln_dst[i][icomp] = soln_src[i][icomp];
+    soln_dst[icomp][i] = soln_src[icomp][i];
   }
 }
 
@@ -193,6 +193,12 @@ void TimeSolverExplicitRK4::Solve()
 
     //Solution Variables
     solution_field_type res_vec, sol_n_vec, sol_np1_vec, sol_temp_vec;
+    for(int i = 0; i < 5; i++) {
+      res_vec[i] = (double *) malloc(sizeof(double) * ncells);
+      sol_n_vec[i] = (double *) malloc(sizeof(double) * ncells);
+      sol_np1_vec[i] = (double *) malloc(sizeof(double) * ncells);
+      sol_temp_vec[i] = (double *) malloc(sizeof(double) * ncells);
+    }
     /*solution_field_type sol_n_vec = (double **) malloc(sizeof(double *) * ncells);
     solution_field_type sol_np1_vec = (double **) malloc(sizeof(double *) * ncells);
     solution_field_type sol_temp_vec = (double **) malloc(sizeof(double *) * ncells); //Needed for RK4 Stages.
@@ -208,8 +214,8 @@ void TimeSolverExplicitRK4::Solve()
         // gradients = gradient_field_type("gradients", ncells);
     }
     if(options_.second_order_space){
-        for(int i = 0; i < 3; i++)
-          limiters[i] = (double *) malloc(sizeof(double) * ncells);
+        for(int i = 0; i < 5; i++)
+          limiters[i] = new double[ncells];
         // limiters = solution_field_type("limiters", ncells);
     }
 
@@ -258,7 +264,7 @@ void TimeSolverExplicitRK4::Solve()
       initialize_constant init_fields(cells, sol_n_vec, sol_temp_vec, &inflow_state[0]);
       printf("I mean seriously\n");
       for(int i = 0; i < nowned_cells; i++) {
-        printf("%d\n",i);
+       //  printf("%d\n",i);
         init_fields(i);
       }
       // Kokkos::parallel_for(nowned_cells, init_fields);
@@ -273,6 +279,8 @@ void TimeSolverExplicitRK4::Solve()
     // Kokkos::parallel_for(nowned_cells, copy_solution);
     // Kokkos::fence();
 
+    printf("Solve (8)\n");
+
     for (ts_data_.time_it = 1; ts_data_.time_it <= ts_data_.max_its; ++ts_data_.time_it)
     {  
       // Increment the time, do not need to worry about updating it for stages because no source terms depend on the time.
@@ -284,12 +292,16 @@ void TimeSolverExplicitRK4::Solve()
              ts_data_.dt);
       }
 
+      printf("Solve (9.1)\n");
+
       // R-K stages loop ****************************************************
-      for (unsigned irk = 0; irk < stages_; ++irk)
+      for (unsigned irk = 0; irk < stages_; irk++)
       {
         //Update temporary solution used to evaluate the residual for this RK stage
         for (int i=0; i < nowned_cells; i++)
           update(alpha_[irk], res_vec, sol_n_vec, sol_temp_vec, i);
+
+        printf("Solve (9.1.1)\n");
 
         //Zero fluxes
         zero_cell_flux zero_flux(cells);
@@ -297,16 +309,20 @@ void TimeSolverExplicitRK4::Solve()
         // Kokkos::parallel_for(nowned_cells, zero_flux);
         // Kokkos::fence();
 
+        printf("Solve (9.1.2)\n");
+
         //Compute Gradients and Limiters
         if(options_.second_order_space || options_.viscous){
           green_gauss_gradient.compute_gradients(sol_temp_vec, gradients);
         }
 
+        printf("Solve (9.1.3)\n");
+
         if(options_.second_order_space){
           stencil_limiter.compute_min_max(sol_temp_vec);
         }
-
-
+    
+        printf("Solve (9.1.4)\n");
       //Compute internal face fluxes
       roe_flux inviscid_flux_evaluator;
       if(options_.viscous){
@@ -337,6 +353,8 @@ void TimeSolverExplicitRK4::Solve()
         }
         // Kokkos::fence();
       }
+
+      printf("Solve (9.2)\n");
 
       //Extrapolated BC fluxes
       typename std::vector<Faces>::iterator ef_iter, ef_iter_end;
@@ -405,37 +423,50 @@ void TimeSolverExplicitRK4::Solve()
     // Kokkos::parallel_for(nowned_cells, copy_solution);
   }
 
+  printf("Solve (10)\n");
+
   /*if(my_id_==0){
      fprintf(stdout,"\n ... Device Run time: %8.2f seconds ...\n", timer.seconds());
    }*/
 
-  size_t current_mem_usage, high_water_mem_usage;
+  /*size_t current_mem_usage, high_water_mem_usage;
   get_memory_usage(current_mem_usage, high_water_mem_usage);
   current_mem_usage = current_mem_usage/(1024.0*1024.0);
   high_water_mem_usage = high_water_mem_usage/(1024.0*1024.0);
-  fprintf(stdout,"\n CPU Memory Usage (Current, High Water) - end of calculation: %lu MB, %lu MB", current_mem_usage, high_water_mem_usage);
+  fprintf(stdout,"\n CPU Memory Usage (Current, High Water) - end of calculation: %lu MB, %lu MB", current_mem_usage, high_water_mem_usage);*/
+
+  printf("Solve (11)\n");
 
   // Output to file on the host.  Requires a deep copy from device to host.
-   if(options_.output_results){
+   if(options_.output_results || true){
      std::ofstream output_file;
      std::stringstream fs;
-     fs << "results.";
+     printf("Solve (12.1)\n");
+
+     fs << "test.txt";
      // fs << my_id_;
      std::string filename = fs.str();
      output_file.open(filename.c_str(), std::ios::out);
 
+     printf("Solve (12.2)\n");
+     // output_file.open("results.0");
+
+     printf("Solve (12.3)\n");
+
      for(int i=0; i<nowned_cells; i++)
      {
-       output_file << cells.coordinates_[i][0] << "\t";
-       output_file << cells.coordinates_[i][1] << "\t";
-       output_file << cells.coordinates_[i][2] << "\t";
+       /*output_file << cells.coordinates_[0][i] << "\t";
+       output_file << cells.coordinates_[1][i] << "\t";
+       output_file << cells.coordinates_[2][i] << "\t";
        for(int icomp=0; icomp<5; icomp++){
-         output_file << sol_n_vec[i][icomp] << "\t";
+         output_file << sol_n_vec[icomp][i] << "\t";
        }
-       output_file << std::endl;
+       output_file << std::endl;*/
      }
-     output_file.close();
+     // output_file.close();
    }
+
+   printf("Solve (13)\n");
 }
 
 #endif

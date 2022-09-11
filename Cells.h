@@ -37,7 +37,7 @@ public:
 //TODO: Make this more efficient for atomics.
    {
     // Allocating memory for volumes
-    volumes_ = (double *) malloc(sizeof(double) * ncells);
+    volumes_ = new double[ncells];
 
     int mult = 1;
 #ifndef ATOMICS_FLUX
@@ -45,15 +45,23 @@ public:
 #endif
 
     // Allocating memory for flux & coordinates
+    for(int i = 0; i < 5; i++) {
+      cell_flux_[i] = new double*[ncells];
+      for(int j = 0; j < ncells; j++)
+        cell_flux_[i][j] = new double[mult];// (double **) malloc(sizeof(double) * ncells * mult);
+    }
+
     for (int i = 0; i < 3; i++) {
-      cell_flux_[i] = (double **) malloc(sizeof(double) * ncells * mult);
       coordinates_[i] = (double *) malloc(sizeof(double) * ncells);
     }
 
     // Allocating memory for gradient storage
     for (int i = 0; i < 5; i++) {
-      for (int j = 0; j < 3; j++) 
-        cell_gradient_[i][j] = (double **) malloc(sizeof(double) * ncells * mult);
+      for (int j = 0; j < 3; j++) {
+        cell_gradient_[i][j] = new double*[ncells];
+        for(int z = 0; z < ncells; z++) 
+          cell_gradient_[i][j][z] = new double[mult];
+      } // [j] = (double **) malloc(sizeof(double) * ncells * mult);
     }
 
    }
@@ -71,8 +79,8 @@ struct zero_cell_flux{
   const int ncells_;
   const int nfaces_;
   Cells cells_;
-  // cell_storage_field_type cell_flux_;
-  // gradient_storage_field_type cell_gradient_;
+  cell_storage_field_type cell_flux_;
+  gradient_storage_field_type cell_gradient_;
 
   zero_cell_flux(Cells cells):
         ncells_(cells.ncells_),
@@ -80,20 +88,28 @@ struct zero_cell_flux{
         cells_(cells)
         // cell_flux_(cells.cell_flux_),
         // cell_gradient_(cells.cell_gradient_)
-        {}
+        {
+          // std::copy(cells.cell_flux_, cells.cell_flux_ + 5, cell_flux_);
+          for(int i = 0; i < 5; i++) {
+            cell_flux_[i] = cells.cell_flux_[i];
+            for (int j = 0; j < 3; j++)
+              cell_gradient_[i][j] = cells.cell_gradient_[i][j];
+          }
+        }
 
   void operator()( int i )const{
     for (int icomp = 0; icomp < 5; ++icomp) {
-      #ifdef ATOMICS_FLUX
+      /*#ifdef ATOMICS_FLUX
       cells_.cell_flux_[i][0][icomp] = 0.0;
-      #else
-      for(int iface = 0; iface<nfaces_; ++iface) {
-        cells_.cell_flux_[i][iface][icomp] = 0.0;
+      #else*/
+      for(int iface = 0; iface<nfaces_; iface++) {
+        cells_.cell_flux_[icomp][iface][i] = 0.0;
       }
-      #endif
+
+      // #endif
       for(int iDir = 0; iDir < 3; ++iDir)
       {
-        cells_.cell_gradient_[i][0][icomp][iDir] = 0.0;
+        cells_.cell_gradient_[icomp][iDir][i][0] = 0.0;
       }
     }
   }

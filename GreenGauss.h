@@ -215,7 +215,7 @@ struct green_gauss_gradient_sum{
 
     for(int idir = 0; idir < 3; ++idir)
     {
-      gradient_[i][icomp][idir] = 0;
+      gradient_[icomp][idir][i] = 0;
     }
   }
 #ifdef ATOMICS_FLUX
@@ -229,7 +229,7 @@ struct green_gauss_gradient_sum{
       {
         for(int idir = 0; idir < 3; ++idir)
         {
-          gradient_[i][icomp][idir] += face_gradient_[i][iface][icomp][idir];
+          gradient_[icomp][idir][i] += face_gradient_[iface][icomp][idir][i];
         }
       }
     }
@@ -261,11 +261,15 @@ class GreenGauss {
 
     //computes the gradient on locally owned cells.
     void compute_gradients(solution_field_type sol_np1_vec, gradient_field_type gradients){
+      printf("Gradients (1)\n");
+
       //Internal Faces
       const int ninternal_faces = internal_faces_->nfaces_;
       green_gauss_face face_gradient(*internal_faces_, sol_np1_vec, *cells_);
       for(int i = 0; i < ninternal_faces; i++) face_gradient(i);
       // Kokkos::parallel_for(ninternal_faces, face_gradient);
+
+      printf("Gradients (2)\n");
 
       //Boundary Faces
       typename std::vector<Faces *>::iterator bcf_iter, bcf_iter_end;
@@ -279,10 +283,14 @@ class GreenGauss {
         // Kokkos::parallel_for(nboundary_faces, bc_gradient);
       }
 
+      printf("Gradients (3)\n");
+
       //Sum of all contributions.
       green_gauss_gradient_sum gradient_sum(*cells_, gradients);
       for(int i = 0; i < mesh_data_->num_owned_cells; i++)
         gradient_sum(i);
+
+      printf("Gradients (4)\n");
       // Kokkos::parallel_for(mesh_data_->num_owned_cells, gradient_sum);
       // Kokkos::fence();
     }

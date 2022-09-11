@@ -37,16 +37,16 @@ public:
    permute_vector_(nfaces)*/
   {
     for(int i=0; i < 3; i++) {
-      coordinates_[i] = (double *) malloc(sizeof(double) * nfaces);
-      face_normal_[i] = (double *) malloc(sizeof(double) * nfaces);
-      face_tangent_[i] = (double *) malloc(sizeof(double) * nfaces);
-      face_binormal_[i] = (double *) malloc(sizeof(double) * nfaces);
+      coordinates_[i] = new double[nfaces];
+      face_normal_[i] = new double[nfaces];
+      face_tangent_[i] = new double[nfaces];
+      face_binormal_[i] = new double[nfaces];
     }
     for(int i=0; i < 2; i++) {
-      face_cell_conn_[i] = (int *) malloc(sizeof(int) * nfaces);
-      cell_flux_index_[i] = (int *) malloc(sizeof(int) * nfaces);
+      face_cell_conn_[i] = new int[nfaces];
+      cell_flux_index_[i] = new int[nfaces];
     }
-    permute_vector_ = (int *) malloc(sizeof(int) * nfaces);
+    permute_vector_ = new int[nfaces];
   }
 
 };

@@ -23,7 +23,6 @@ void initialize_sod3d(
     double P2=6894.757;
     double T2=231.11;
 
-
     double density1 = P1/(Rgas*T1);
     double rhoE1 = density1*(Cv*T1);
 
@@ -73,25 +72,25 @@ void initialize_sod3d(
   {
     for(int i=0; i<5; ++i) {
       flow_state_[i]=flow_state[i];
-      soln_[i-1] = (double *) malloc(sizeof(double) * 1024);
-      solnp1_[i-1] = solnp1[i-1];
-      soln_[i-1] = soln[i-1];
+      // soln_[i-1] = (double *) malloc(sizeof(double) * 1024);
+      // solnp1_[i-1] = solnp1[i-1];
+      // soln_[i-1] = soln[i-1];
     }
 
-    // std::copy(solnp1, solnp1 + 5, solnp1_);
-    // std::copy(soln, soln + 5, soln_);
+    std::copy(solnp1, solnp1 + 5, solnp1_);
+    std::copy(soln, soln + 5, soln_);
   }
   
   void operator()( int i )const{
     for(int j=0; j<5; j++) {
-      // soln_[j][i]=flow_state_[j];
-      printf("%p ", soln_[j]);
+      soln_[j][i]=flow_state_[j];
+      // printf("%.6f ", flow_state_[j]);
     }
 
-    printf("Here\n");
+    // printf("Here\n");
 
     for(int icomp=0; icomp<5; icomp++){
-      solnp1_[i][icomp]=soln_[i][icomp];
+      solnp1_[icomp][i]=soln_[icomp][i];
     }
   }
 };
