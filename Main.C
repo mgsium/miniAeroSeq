@@ -36,6 +36,7 @@ void run(const Options & simulation_options)
     printf("Created Mesh");
 
     mesh.fillMeshData(mesh_data);
+    printf("Owned Cells: %d\n", mesh_data.num_owned_cells);
     printf("Filled Mesh\n");
 
     TimeSolverExplicitRK4 * time_solver = new TimeSolverExplicitRK4(mesh_data, simulation_options);

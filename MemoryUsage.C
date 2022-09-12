@@ -8,7 +8,7 @@ void get_memory_usage(size_t & current, size_t & high_water_mark)
 {
     current = 0;
     high_water_mark = 0;
-#ifdef BGQ_ENABLE_MEMSIZE
+/*#ifdef BGQ_ENABLE_MEMSIZE
     uint64_t query_heap_used=-1;
     uint64_t query_heapmax=-1;
 
@@ -17,11 +17,16 @@ void get_memory_usage(size_t & current, size_t & high_water_mark)
 
     current = query_heap_used;
     high_water_mark = query_heapmax;
-#else
+#else*/
+
+    printf("Memory Usage (1)\n");
+
     std::string vmrss, vmhwm;
     std::string line(128,'\0');
     std::ifstream proc_status("/proc/self/status");
     if (!proc_status) return;
+
+    printf("Memory Usage (2)\n");
 
     while ( vmrss.empty())
     {
@@ -43,5 +48,5 @@ void get_memory_usage(size_t & current, size_t & high_water_mark)
           high_water_mark *= 1024;
         }
     }
-#endif
+// #endif
 }

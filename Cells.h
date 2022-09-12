@@ -39,7 +39,7 @@ public:
     // Allocating memory for volumes
     volumes_ = new double[ncells];
 
-    int mult = 1;
+    int mult = faces_per_elem;
 #ifndef ATOMICS_FLUX
     mult = faces_per_elem;
 #endif
@@ -51,9 +51,8 @@ public:
         cell_flux_[i][j] = new double[mult];// (double **) malloc(sizeof(double) * ncells * mult);
     }
 
-    for (int i = 0; i < 3; i++) {
-      coordinates_[i] = (double *) malloc(sizeof(double) * ncells);
-    }
+    for (int i = 0; i < 3; i++)
+      coordinates_[i] = new double[ncells];
 
     // Allocating memory for gradient storage
     for (int i = 0; i < 5; i++) {
@@ -98,18 +97,19 @@ struct zero_cell_flux{
         }
 
   void operator()( int i )const{
-    for (int icomp = 0; icomp < 5; ++icomp) {
+    for (int icomp = 0; icomp < 5; icomp++) {
       /*#ifdef ATOMICS_FLUX
       cells_.cell_flux_[i][0][icomp] = 0.0;
       #else*/
       for(int iface = 0; iface<nfaces_; iface++) {
-        cells_.cell_flux_[icomp][iface][i] = 0.0;
+        // printf("icomp: %d, i: %d, iface: %d\n", icomp, i, iface);
+        cells_.cell_flux_[icomp][i][iface] = 0.0;
       }
 
       // #endif
-      for(int iDir = 0; iDir < 3; ++iDir)
+      for(int iDir = 0; iDir < 3; iDir++)
       {
-        cells_.cell_gradient_[icomp][iDir][i][0] = 0.0;
+        cells_.cell_gradient_[icomp][iDir][0][i] = 0.0;
       }
     }
   }

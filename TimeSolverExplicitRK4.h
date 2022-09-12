@@ -194,10 +194,10 @@ void TimeSolverExplicitRK4::Solve()
     //Solution Variables
     solution_field_type res_vec, sol_n_vec, sol_np1_vec, sol_temp_vec;
     for(int i = 0; i < 5; i++) {
-      res_vec[i] = (double *) malloc(sizeof(double) * ncells);
-      sol_n_vec[i] = (double *) malloc(sizeof(double) * ncells);
-      sol_np1_vec[i] = (double *) malloc(sizeof(double) * ncells);
-      sol_temp_vec[i] = (double *) malloc(sizeof(double) * ncells);
+      res_vec[i] = new double[ncells];
+      sol_n_vec[i] = new double[ncells];
+      sol_np1_vec[i] = new double[ncells];
+      sol_temp_vec[i] = new double[ncells];
     }
     /*solution_field_type sol_n_vec = (double **) malloc(sizeof(double *) * ncells);
     solution_field_type sol_np1_vec = (double **) malloc(sizeof(double *) * ncells);
@@ -309,6 +309,8 @@ void TimeSolverExplicitRK4::Solve()
         // Kokkos::parallel_for(nowned_cells, zero_flux);
         // Kokkos::fence();
 
+        printf("Options: %d\n", options_.output_results);
+
         printf("Solve (9.1.2)\n");
 
         //Compute Gradients and Limiters
@@ -321,7 +323,7 @@ void TimeSolverExplicitRK4::Solve()
         if(options_.second_order_space){
           stencil_limiter.compute_min_max(sol_temp_vec);
         }
-    
+
         printf("Solve (9.1.4)\n");
       //Compute internal face fluxes
       roe_flux inviscid_flux_evaluator;
@@ -437,33 +439,33 @@ void TimeSolverExplicitRK4::Solve()
 
   printf("Solve (11)\n");
 
-  // Output to file on the host.  Requires a deep copy from device to host.
-   if(options_.output_results || true){
+  printf("output results: %d\n", options_.output_results);
+
+  //Output to file on the host.  Requires a deep copy from device to host.
+   if(options_.output_results){
+     //Copy to host
+     // Kokkos::deep_copy(solution_vec, sol_n_vec);
+     // Kokkos::deep_copy(residuals_host, res_vec);
+     // Kokkos::deep_copy(coordinates_host, cells.coordinates_);
+
      std::ofstream output_file;
      std::stringstream fs;
-     printf("Solve (12.1)\n");
-
-     fs << "test.txt";
+     fs << "results.0";
      // fs << my_id_;
      std::string filename = fs.str();
      output_file.open(filename.c_str(), std::ios::out);
 
-     printf("Solve (12.2)\n");
-     // output_file.open("results.0");
-
-     printf("Solve (12.3)\n");
-
      for(int i=0; i<nowned_cells; i++)
      {
-       /*output_file << cells.coordinates_[0][i] << "\t";
-       output_file << cells.coordinates_[1][i] << "\t";
-       output_file << cells.coordinates_[2][i] << "\t";
+       output_file << coordinates_host[0][i] << "\t";
+       output_file << coordinates_host[1][i] << "\t";
+       output_file << coordinates_host[2][i] << "\t";
        for(int icomp=0; icomp<5; icomp++){
-         output_file << sol_n_vec[icomp][i] << "\t";
+         output_file << solution_vec[icomp][i] << "\t";
        }
-       output_file << std::endl;*/
+       output_file << std::endl;
      }
-     // output_file.close();
+     output_file.close();
    }
 
    printf("Solve (13)\n");

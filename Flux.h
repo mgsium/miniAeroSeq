@@ -56,7 +56,7 @@ struct compute_face_flux {
           permute_vector_(faces.permute_vector_) {
     std::copy(faces.face_cell_conn_, faces.face_cell_conn_ + 2, face_cell_conn_);
     std::copy(faces.cell_flux_index_, faces.cell_flux_index_ + 2, cell_flux_index_);
-    std::copy(cell_values, cell_values + 5, cell_values);
+    std::copy(cell_values, cell_values + 5, cell_values_);
     std::copy(cell_limiters, cell_limiters + 5, cell_limiters_);
     std::copy(cells.coordinates_, cells.coordinates_ + 3, cell_coordinates_);
     std::copy(cells.cell_flux_, cells.cell_flux_ + 5, cell_flux_);
@@ -72,7 +72,7 @@ struct compute_face_flux {
   }
   
   void operator()(const int& ii) const {
-    printf("Flux (1)\n");
+    // printf("Flux (1)\n");
     const int i = permute_vector_[ii];
     const int left_index = face_cell_conn_[0][i];
     const int right_index = face_cell_conn_[1][i];
@@ -83,29 +83,31 @@ struct compute_face_flux {
     double primitives_l[5];
     double primitives_r[5];
 
-    printf("Flux (2)\n");
+    // printf("%d\n", cell_values_[0][0]);
+    // printf("Flux (2)\n");
 
-    for (int icomp = 0; icomp < 5; ++icomp) {
+    for (int icomp = 0; icomp < 5; icomp++) {
+      // printf("icomp: %d\n", icomp);
       conservatives_l[icomp] = cell_values_[icomp][left_index];
       conservatives_r[icomp] = cell_values_[icomp][right_index];
     }
 
-    printf("Flux (3)\n");
+    // printf("Flux (3)\n");
 
     ComputePrimitives(conservatives_l, primitives_l);
     ComputePrimitives(conservatives_r, primitives_r);
 
-    printf("%d\n", left_index);
-    printf("%f\n", cell_limiters_[3][left_index]);
+    // printf("%d\n", left_index);
+    // printf("%f\n", cell_limiters_[3][left_index]);
     // printf("%f\n", cell_limiters_[4][right_index]);
 
-    printf("Flux (4)\n");
+    // printf("Flux (4)\n");
 
     if (second_order) {
 
       //Extrapolation
       for (int icomp = 0; icomp < 5; icomp++) {
-        printf("icomp: %d\n", icomp);
+        // printf("icomp: %d\n", icomp);
       	double gradient_primitive_l_tmp = 0;
 	      double gradient_primitive_r_tmp = 0;
 
@@ -127,7 +129,7 @@ struct compute_face_flux {
 
     } // End of second order
 
-    printf("Flux (5)\n");
+    // printf("Flux (5)\n");
 
     inviscid_flux_evaluator_.compute_flux(primitives_l, primitives_r, flux,
         &face_normal_[i][0], &face_tangent_[i][0], &face_binormal_[i][0]);
@@ -149,7 +151,7 @@ struct compute_face_flux {
 
       double vflux[5];
       viscous_flux_evaluator_.compute_flux(gradients_face, primitives_face,
-          &face_normal_[i][0], vflux);
+          &face_normal_[0][i], vflux);
 
       for (int icomp = 0; icomp < 5; ++icomp) {
         flux[icomp] -= vflux[icomp];
