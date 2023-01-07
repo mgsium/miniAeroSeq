@@ -35,10 +35,8 @@ struct compute_NoSlipBC_flux {
           inviscid_flux_evaluator_(
           inviscid_flux), viscous_flux_evaluator_(viscous_flux) {
 
-            for (int i = 0; i < 5; i++) {
-              cell_values_[i] = cell_values[i];
-              cell_flux_[i] = cells.cell_flux_[i];
-            }
+            std::copy(cell_values, cell_values + 5, cell_values_);
+            std::copy(cells.cell_flux_, cells.cell_flux_ + 5, cell_flux_);
 
             for (int i = 0; i < 3; i++) {
               face_normal_[i]   = faces.face_normal_[i];
@@ -55,7 +53,7 @@ struct compute_NoSlipBC_flux {
   }
 
   void operator()(int i) const {
-    int index = face_cell_conn_[i][0];
+    int index = face_cell_conn_[0][i];
 
     double iflux[5];
     double vflux[5];
@@ -63,8 +61,8 @@ struct compute_NoSlipBC_flux {
     double primitives_r[5];
     double primitives_l[5];
 
-    for (int icomp = 0; icomp < 5; ++icomp) {
-      conservatives[icomp] = cell_values_[index][icomp];
+    for (int icomp = 0; icomp < 5; icomp++) {
+      conservatives[icomp] = cell_values_[icomp][index];
       vflux[icomp] = 0.0;
     }
 
@@ -72,24 +70,24 @@ struct compute_NoSlipBC_flux {
 
     //scale normal since it includes area.
     double area_norm = 0;
-    for (int icomp = 0; icomp < 3; ++icomp) {
-        area_norm += face_normal_[i][icomp] * face_normal_[i][icomp];
+    for (int icomp = 0; icomp < 3; icomp++) {
+        area_norm += face_normal_[icomp][i] * face_normal_[icomp][i];
     }
     area_norm = std::sqrt(area_norm);
 
     double uboundary = 0.0;
-    uboundary += primitives_l[1] * face_normal_[i][0] / area_norm;
-    uboundary += primitives_l[2] * face_normal_[i][1] / area_norm;
-    uboundary += primitives_l[3] * face_normal_[i][2] / area_norm;
+    uboundary += primitives_l[1] * face_normal_[0][i] / area_norm;
+    uboundary += primitives_l[2] * face_normal_[1][i] / area_norm;
+    uboundary += primitives_l[3] * face_normal_[2][i] / area_norm;
 
     primitives_r[0] = primitives_l[0];
-    primitives_r[1] = primitives_l[1] - 2 * uboundary * face_normal_[i][0] / area_norm;
-    primitives_r[2] = primitives_l[2] - 2 * uboundary * face_normal_[i][1] / area_norm;
-    primitives_r[3] = primitives_l[3] - 2 * uboundary * face_normal_[i][2] / area_norm;
+    primitives_r[1] = primitives_l[1] - 2 * uboundary * face_normal_[0][i] / area_norm;
+    primitives_r[2] = primitives_l[2] - 2 * uboundary * face_normal_[1][i] / area_norm;
+    primitives_r[3] = primitives_l[3] - 2 * uboundary * face_normal_[2][i] / area_norm;
     primitives_r[4] = primitives_l[4];
 
     inviscid_flux_evaluator_.compute_flux(primitives_l, primitives_r, iflux,
-        &face_normal_[i][0], &face_tangent_[i][0], &face_binormal_[i][0]);
+        &face_normal_[0][i], &face_tangent_[0][i], &face_binormal_[0][i]);
 
     if (ViscousFluxType::isViscous) {
       double primitives_face[5];
@@ -101,21 +99,21 @@ struct compute_NoSlipBC_flux {
       primitives_face[2] = 0.0;
       primitives_face[3] = 0.0;
       primitives_face[4] = primitives_l[4];
-      for (int idir = 0; idir < 3; ++idir) {
+      for (int idir = 0; idir < 3; idir++) {
         distance_to_wall += std::pow(
-            face_coordinates_[i][idir] - cell_coordinates_[index][idir], 2);
-        unit_normal[idir] = face_normal_[i][idir] / area_norm;
+            face_coordinates_[idir][i] - cell_coordinates_[idir][index], 2);
+        unit_normal[idir] = face_normal_[idir][i] / area_norm;
       }
       double inv_distance_to_wall = 1.0 / std::sqrt(distance_to_wall);
 
-      for (int icomp = 0; icomp < 5; ++icomp) {
-        for (int idir = 0; idir < 3; ++idir) {
+      for (int icomp = 0; icomp < 5; icomp++) {
+        for (int idir = 0; idir < 3; idir++) {
           gradients_face[icomp][idir] = (primitives_face[icomp]
               - primitives_l[icomp]) * unit_normal[idir] * inv_distance_to_wall;
         }
       }
       viscous_flux_evaluator_.compute_flux(gradients_face, primitives_face,
-          &face_normal_[i][0], vflux);
+          &face_normal_[0][i], vflux);
     }
 
 #ifdef CELL_FLUX
